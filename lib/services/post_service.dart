@@ -1,0 +1,156 @@
+import '../main.dart';
+import '../models/post_model.dart';
+import '../core/constants/supabase_constants.dart';
+
+class PostService {
+  // Create post
+  Future<PostModel> createPost({
+    required String content,
+    required bool isAnonymous,
+  }) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        throw Exception('User not authenticated');
+      }
+
+      final response = await supabase
+          .from(SupabaseConstants.postsTable)
+          .insert({
+            'user_id': userId,
+            'content': content,
+            'is_anonymous': isAnonymous,
+          })
+          .select('*, users(*)')
+          .single();
+
+      return PostModel.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Get all posts (home feed)
+  Future<List<PostModel>> getPosts({int limit = 20, int offset = 0}) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      
+      final response = await supabase
+          .from(SupabaseConstants.postsTable)
+          .select('''
+            *,
+            users(*),
+            likes(count),
+            comments(count)
+          ''')
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      final posts = (response as List).map((json) {
+        // Count likes and comments
+        final likesCount = json['likes']?[0]?['count'] ?? 0;
+        final commentsCount = json['comments']?[0]?['count'] ?? 0;
+        
+        return PostModel.fromJson({
+          ...json,
+          'likes_count': likesCount,
+          'comments_count': commentsCount,
+        });
+      }).toList();
+
+      // Check if current user liked each post
+      if (userId != null) {
+        final postIds = posts.map((p) => p.id).toList();
+        final userLikes = await supabase
+            .from(SupabaseConstants.likesTable)
+            .select('post_id')
+            .eq('user_id', userId)
+            .inFilter('post_id', postIds);
+
+        final likedPostIds = (userLikes as List)
+            .map((like) => like['post_id'] as String)
+            .toSet();
+
+        return posts.map((post) {
+          return post.copyWith(isLiked: likedPostIds.contains(post.id));
+        }).toList();
+      }
+
+      return posts;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Get user posts
+  Future<List<PostModel>> getUserPosts(String userId) async {
+    try {
+      final response = await supabase
+          .from(SupabaseConstants.postsTable)
+          .select('''
+            *,
+            users(*),
+            likes(count),
+            comments(count)
+          ''')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return (response as List).map((json) {
+        final likesCount = json['likes']?[0]?['count'] ?? 0;
+        final commentsCount = json['comments']?[0]?['count'] ?? 0;
+        
+        return PostModel.fromJson({
+          ...json,
+          'likes_count': likesCount,
+          'comments_count': commentsCount,
+        });
+      }).toList();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Like post
+  Future<void> likePost(String postId) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not authenticated');
+
+      await supabase.from(SupabaseConstants.likesTable).insert({
+        'user_id': userId,
+        'post_id': postId,
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Unlike post
+  Future<void> unlikePost(String postId) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) throw Exception('User not authenticated');
+
+      await supabase
+          .from(SupabaseConstants.likesTable)
+          .delete()
+          .eq('user_id', userId)
+          .eq('post_id', postId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Delete post
+  Future<void> deletePost(String postId) async {
+    try {
+      await supabase
+          .from(SupabaseConstants.postsTable)
+          .delete()
+          .eq('id', postId);
+    } catch (e) {
+      rethrow;
+    }
+  }
+}
