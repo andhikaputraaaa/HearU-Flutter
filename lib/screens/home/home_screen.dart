@@ -5,8 +5,29 @@ import '../../providers/post_provider.dart';
 import 'package:intl/intl.dart';
 
 // This is now a content widget without navbar
-class HomeScreenContent extends ConsumerWidget {
+class HomeScreenContent extends ConsumerStatefulWidget {
   const HomeScreenContent({super.key});
+
+  @override
+  ConsumerState<HomeScreenContent> createState() => _HomeScreenContentState();
+}
+
+class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
 
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
@@ -38,7 +59,7 @@ class HomeScreenContent extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final postsAsync = ref.watch(postsProvider);
 
     return Scaffold(
@@ -48,23 +69,23 @@ class HomeScreenContent extends ConsumerWidget {
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
-        title: Image.asset(
-          'assets/images/logo.png',
-          height: 80,
-          errorBuilder: (context, error, stackTrace) {
-            return const Icon(
-              Icons.headset_rounded,
-              color: Color(0xFF00BCD4),
-              size: 50,
-            );
-          },
+        title: GestureDetector(
+          onTap: _scrollToTop,
+          child: Image.asset(
+            'assets/images/logo.png',
+            height: 80,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(
+                Icons.headset_rounded,
+                color: Color(0xFF00BCD4),
+                size: 50,
+              );
+            },
+          ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: Colors.grey[300],
-            height: 1,
-          ),
+          child: Container(color: Colors.grey[300], height: 1),
         ),
       ),
       body: postsAsync.when(
@@ -100,26 +121,16 @@ class HomeScreenContent extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.post_add,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
+                  Icon(Icons.post_add, size: 64, color: Colors.grey[400]),
                   const SizedBox(height: 16),
                   Text(
                     'Belum ada postingan',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Jadilah yang pertama membuat postingan!',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
                   ),
                 ],
               ),
@@ -132,20 +143,24 @@ class HomeScreenContent extends ConsumerWidget {
             },
             color: const Color(0xFF00BCD4),
             child: ListView.builder(
+              controller: _scrollController,
               padding: const EdgeInsets.only(top: 8, bottom: 100),
               itemCount: posts.length,
               itemBuilder: (context, index) {
                 final post = posts[index];
-                final username = post.isAnonymous
+                final displayName = post.isAnonymous
                     ? 'Anonim'
-                    : post.user?.username ?? 'Unknown';
+                    : post.user?.displayName ??
+                          post.user?.username ??
+                          'Unknown';
                 final handle = post.isAnonymous
                     ? ''
                     : '@${post.user?.username ?? 'unknown'}';
-                final isVerified = false; // Set to false for now, can add field later
+                final isVerified =
+                    false; // Set to false for now, can add field later
 
                 return PostCard(
-                  username: username,
+                  username: displayName,
                   handle: handle,
                   isVerified: isVerified,
                   content: post.content,
@@ -156,6 +171,7 @@ class HomeScreenContent extends ConsumerWidget {
                       ? Colors.grey
                       : _getAvatarColor(post.userId),
                   isAnonymous: post.isAnonymous,
+                  avatarUrl: post.isAnonymous ? null : post.user?.avatarUrl,
                 );
               },
             ),

@@ -177,7 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         // Username Field
                         CustomTextField(
-                          hint: 'Username',
+                          hint: 'Email',
                           controller: _usernameController,
                           keyboardType: TextInputType.emailAddress,
                           validator: Validators.email,

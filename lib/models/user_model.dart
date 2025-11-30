@@ -4,6 +4,7 @@ class UserModel {
   final String? displayName;
   final String? bio;
   final String? avatarUrl;
+  final String? bannerUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -13,6 +14,7 @@ class UserModel {
     this.displayName,
     this.bio,
     this.avatarUrl,
+    this.bannerUrl,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -24,6 +26,7 @@ class UserModel {
       displayName: json['display_name'] as String?,
       bio: json['bio'] as String?,
       avatarUrl: json['avatar_url'] as String?,
+      bannerUrl: json['banner_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -36,6 +39,7 @@ class UserModel {
       'display_name': displayName,
       'bio': bio,
       'avatar_url': avatarUrl,
+      'banner_url': bannerUrl,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -47,6 +51,7 @@ class UserModel {
     String? displayName,
     String? bio,
     String? avatarUrl,
+    String? bannerUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -56,6 +61,7 @@ class UserModel {
       displayName: displayName ?? this.displayName,
       bio: bio ?? this.bio,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      bannerUrl: bannerUrl ?? this.bannerUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

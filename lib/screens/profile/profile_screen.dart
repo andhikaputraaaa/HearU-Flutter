@@ -1,11 +1,94 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/post_provider.dart';
+import '../../models/post_model.dart';
+import '../../main.dart';
+import 'settings_screen.dart';
 
-class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({super.key});
+// Provider untuk mendapatkan postingan user saat ini
+final userPostsProvider = FutureProvider<List<PostModel>>((ref) async {
+  final userId = supabase.auth.currentUser?.id;
+  if (userId == null) return [];
+
+  final postService = ref.watch(postServiceProvider);
+  return await postService.getUserPosts(userId);
+});
+
+class ProfileScreen extends ConsumerStatefulWidget {
+  const ProfileScreen({super.key, this.onRefreshRequested});
+
+  final void Function(VoidCallback)? onRefreshRequested;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => ProfileScreenState();
+}
+
+class ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  // Method untuk refresh data dari luar (parent widget)
+  Future<void> refreshData() async {
+    ref.invalidate(currentUserProfileProvider);
+    ref.invalidate(userPostsProvider);
+    _scrollToTop();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Register callback untuk refresh dari parent
+    widget.onRefreshRequested?.call(refreshData);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inDays > 0) {
+      return DateFormat('HH:mm  dd MMMM yyyy', 'id_ID').format(timestamp);
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} jam yang lalu';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} menit yang lalu';
+    } else {
+      return 'Baru saja';
+    }
+  }
+
+  Color _getAvatarColor(String visibleId) {
+    final hash = visibleId.hashCode;
+    final colors = [
+      Colors.black,
+      const Color(0xFF0D47A1),
+      const Color(0xFFE65100),
+      const Color(0xFF1B5E20),
+      const Color(0xFF4A148C),
+      const Color(0xFFB71C1C),
+    ];
+    return colors[hash.abs() % colors.length];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final userProfileAsync = ref.watch(currentUserProfileProvider);
+    final userPostsAsync = ref.watch(userPostsProvider);
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -13,24 +96,391 @@ class ProfileScreen extends ConsumerWidget {
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
-        title: const Text(
-          'Profile',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+        title: GestureDetector(
+          onTap: _scrollToTop,
+          child: const Text(
+            'Profil',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.black87),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+            tooltip: 'Pengaturan',
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: Colors.grey[300],
-            height: 1,
-          ),
+          child: Container(color: Colors.grey[300], height: 1),
         ),
       ),
-      body: const Center(
-        child: Text('Profile Screen - Coming Soon'),
+      body: userProfileAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
+          ),
+        ),
+        error: (error, stack) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+              const SizedBox(height: 16),
+              Text(
+                'Gagal memuat profil',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+        data: (userProfile) {
+          if (userProfile == null) {
+            return const Center(child: Text('User tidak ditemukan'));
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(currentUserProfileProvider);
+              ref.invalidate(userPostsProvider);
+            },
+            color: const Color(0xFF00BCD4),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                children: [
+                  // Profile Header Section
+                  Container(
+                    color: Colors.white,
+                    child: Column(
+                      children: [
+                        // Banner Image
+                        Stack(
+                          clipBehavior: Clip.none,
+                          alignment: Alignment.bottomCenter,
+                          children: [
+                            // Banner
+                            Container(
+                              height: 120,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                image:
+                                    (userProfile.bannerUrl != null &&
+                                        userProfile.bannerUrl!.isNotEmpty)
+                                    ? DecorationImage(
+                                        image: NetworkImage(
+                                          userProfile.bannerUrl!,
+                                        ),
+                                        fit: BoxFit.cover,
+                                      )
+                                    : const DecorationImage(
+                                        image: AssetImage(
+                                          'assets/images/default_banner.jpg',
+                                        ),
+                                        fit: BoxFit.cover,
+                                      ),
+                              ),
+                            ),
+                            // Avatar
+                            Positioned(
+                              bottom: -50,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 4,
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: _getAvatarColor(
+                                    userProfile.id,
+                                  ),
+                                  backgroundImage:
+                                      (userProfile.avatarUrl != null &&
+                                          userProfile.avatarUrl!.isNotEmpty)
+                                      ? NetworkImage(userProfile.avatarUrl!)
+                                      : null,
+                                  child:
+                                      (userProfile.avatarUrl == null ||
+                                          userProfile.avatarUrl!.isEmpty)
+                                      ? Text(
+                                          userProfile.username.isNotEmpty
+                                              ? userProfile.username[0]
+                                                    .toUpperCase()
+                                              : '?',
+                                          style: const TextStyle(
+                                            fontSize: 36,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 60),
+                        // Display Name
+                        Text(
+                          userProfile.displayName ?? userProfile.username,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        // Username
+                        Text(
+                          '@${userProfile.username}',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Bio
+                        if (userProfile.bio != null &&
+                            userProfile.bio!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
+                            child: Text(
+                              userProfile.bio!,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+
+                  // Postingan Section
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    color: Colors.white,
+                    margin: const EdgeInsets.only(top: 8),
+                    child: const Center(
+                      child: Text(
+                        'Postingan',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // User Posts
+                  userPostsAsync.when(
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Color(0xFF00BCD4),
+                          ),
+                        ),
+                      ),
+                    ),
+                    error: (error, stack) => Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: Text(
+                          'Gagal memuat postingan',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ),
+                    ),
+                    data: (posts) {
+                      if (posts.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Center(
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.post_add,
+                                  size: 48,
+                                  color: Colors.grey[400],
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Belum ada postingan',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(bottom: 100),
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) {
+                          final post = posts[index];
+                          return _buildPostCard(
+                            context,
+                            userProfile: userProfile,
+                            post: post,
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPostCard(
+    BuildContext context, {
+    required dynamic userProfile,
+    required PostModel post,
+  }) {
+    final isAnonymous = post.isAnonymous;
+    final displayName = isAnonymous
+        ? 'Anonim'
+        : (userProfile.displayName ?? userProfile.username);
+    final username = isAnonymous ? '' : '@${userProfile.username}';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User info row
+            Row(
+              children: [
+                // Avatar
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: isAnonymous
+                      ? Colors.grey
+                      : _getAvatarColor(userProfile.id),
+                  backgroundImage:
+                      (!isAnonymous &&
+                          userProfile.avatarUrl != null &&
+                          userProfile.avatarUrl!.isNotEmpty)
+                      ? NetworkImage(userProfile.avatarUrl!)
+                      : null,
+                  child: isAnonymous
+                      ? const Icon(Icons.person, color: Colors.white)
+                      : ((userProfile.avatarUrl == null ||
+                                userProfile.avatarUrl!.isEmpty)
+                            ? Text(
+                                userProfile.username.isNotEmpty
+                                    ? userProfile.username[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null),
+                ),
+                const SizedBox(width: 12),
+                // Username and handle
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      if (username.isNotEmpty)
+                        Text(
+                          username,
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 14,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // Post content
+            Text(
+              post.content,
+              style: const TextStyle(fontSize: 15, height: 1.4),
+            ),
+            const SizedBox(height: 8),
+            // Timestamp
+            Text(
+              _formatTimestamp(post.createdAt),
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            // Actions (like and comment)
+            Row(
+              children: [
+                Icon(
+                  post.isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: post.isLiked ? Colors.red : Colors.grey[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${post.likesCount} Suka',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+                const SizedBox(width: 24),
+                Icon(
+                  Icons.chat_bubble_outline,
+                  color: Colors.grey[600],
+                  size: 20,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${post.commentsCount} Komentar',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

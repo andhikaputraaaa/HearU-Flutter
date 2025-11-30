@@ -4,7 +4,9 @@ import '../../providers/post_provider.dart';
 import '../../main.dart';
 
 class CreatePostScreen extends ConsumerStatefulWidget {
-  const CreatePostScreen({super.key});
+  final VoidCallback? onPostSuccess;
+
+  const CreatePostScreen({super.key, this.onPostSuccess});
 
   @override
   ConsumerState<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -41,16 +43,18 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       final currentUser = supabase.auth.currentUser;
       print('Current User: ${currentUser?.id}');
       print('Current User Email: ${currentUser?.email}');
-      
+
       if (currentUser == null) {
         throw Exception('User not authenticated. Please login again.');
       }
 
       // Create post using provider
-      await ref.read(postsProvider.notifier).createPost(
-        content: _contentController.text.trim(),
-        isAnonymous: _isAnonymous,
-      );
+      await ref
+          .read(postsProvider.notifier)
+          .createPost(
+            content: _contentController.text.trim(),
+            isAnonymous: _isAnonymous,
+          );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -59,7 +63,15 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context);
+
+        // Clear the text field
+        _contentController.clear();
+        setState(() {
+          _isAnonymous = false;
+        });
+
+        // Call callback to navigate back to home
+        widget.onPostSuccess?.call();
       }
     } catch (e) {
       print('Error creating post: $e');
@@ -87,10 +99,7 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         centerTitle: true,
         title: const Text(
           'Posting',
@@ -102,13 +111,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: Colors.grey[300],
-            height: 1,
-          ),
+          child: Container(color: Colors.grey[300], height: 1),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,16 +132,10 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                 maxLines: null,
                 expands: true,
                 textAlignVertical: TextAlignVertical.top,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Colors.black87,
-                ),
+                style: const TextStyle(fontSize: 15, color: Colors.black87),
                 decoration: const InputDecoration(
                   hintText: 'Curhat dong mahh....',
-                  hintStyle: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 15,
-                  ),
+                  hintStyle: TextStyle(color: Colors.grey, fontSize: 15),
                   border: InputBorder.none,
                 ),
               ),
@@ -197,6 +197,8 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       ),
                     ),
             ),
+            // Extra space for navbar
+            const SizedBox(height: 80),
           ],
         ),
       ),
