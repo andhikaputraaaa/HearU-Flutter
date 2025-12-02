@@ -13,7 +13,7 @@ class CommentsNotifier extends StateNotifier<AsyncValue<List<CommentModel>>> {
   final String postId;
 
   CommentsNotifier(this._commentService, this.postId)
-      : super(const AsyncValue.loading()) {
+    : super(const AsyncValue.loading()) {
     loadComments();
   }
 
@@ -29,10 +29,7 @@ class CommentsNotifier extends StateNotifier<AsyncValue<List<CommentModel>>> {
 
   Future<void> addComment(String content) async {
     try {
-      await _commentService.createComment(
-        postId: postId,
-        content: content,
-      );
+      await _commentService.createComment(postId: postId, content: content);
       // Reload comments after adding
       await loadComments();
     } catch (e) {
@@ -51,25 +48,56 @@ class CommentsNotifier extends StateNotifier<AsyncValue<List<CommentModel>>> {
   }
 
   Future<void> toggleLike(String commentId, bool isCurrentlyLiked) async {
+    // Optimistic update - update state immediately
+    state.whenData((comments) {
+      final updatedComments = comments.map((comment) {
+        if (comment.id == commentId) {
+          return comment.copyWith(
+            isLiked: !isCurrentlyLiked,
+            likesCount: isCurrentlyLiked
+                ? comment.likesCount - 1
+                : comment.likesCount + 1,
+          );
+        }
+        return comment;
+      }).toList();
+      state = AsyncValue.data(updatedComments);
+    });
+
     try {
       if (isCurrentlyLiked) {
         await _commentService.unlikeComment(commentId);
       } else {
         await _commentService.likeComment(commentId);
       }
-      // Reload comments after like/unlike
-      await loadComments();
     } catch (e) {
+      // Revert on error
+      state.whenData((comments) {
+        final revertedComments = comments.map((comment) {
+          if (comment.id == commentId) {
+            return comment.copyWith(
+              isLiked: isCurrentlyLiked,
+              likesCount: isCurrentlyLiked
+                  ? comment.likesCount + 1
+                  : comment.likesCount - 1,
+            );
+          }
+          return comment;
+        }).toList();
+        state = AsyncValue.data(revertedComments);
+      });
       rethrow;
     }
   }
 }
 
 // Comments provider factory
-final commentsProvider = StateNotifierProvider.family<
-    CommentsNotifier,
-    AsyncValue<List<CommentModel>>,
-    String>((ref, postId) {
-  final commentService = ref.watch(commentServiceProvider);
-  return CommentsNotifier(commentService, postId);
-});
+final commentsProvider =
+    StateNotifierProvider.family<
+      CommentsNotifier,
+      AsyncValue<List<CommentModel>>,
+      String
+    >((ref, postId) {
+      final commentService = ref.watch(commentServiceProvider);
+      return CommentsNotifier(commentService, postId);
+    });

@@ -30,10 +30,7 @@ class PostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
     required bool isAnonymous,
   }) async {
     try {
-      await _postService.createPost(
-        content: content,
-        isAnonymous: isAnonymous,
-      );
+      await _postService.createPost(content: content, isAnonymous: isAnonymous);
       // Reload posts after creating
       await loadPosts();
     } catch (e) {
@@ -42,15 +39,44 @@ class PostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   }
 
   Future<void> toggleLike(String postId, bool isCurrentlyLiked) async {
+    // Optimistic update - update state immediately
+    state.whenData((posts) {
+      final updatedPosts = posts.map((post) {
+        if (post.id == postId) {
+          return post.copyWith(
+            isLiked: !isCurrentlyLiked,
+            likesCount: isCurrentlyLiked
+                ? post.likesCount - 1
+                : post.likesCount + 1,
+          );
+        }
+        return post;
+      }).toList();
+      state = AsyncValue.data(updatedPosts);
+    });
+
     try {
       if (isCurrentlyLiked) {
         await _postService.unlikePost(postId);
       } else {
         await _postService.likePost(postId);
       }
-      // Reload posts after like/unlike
-      await loadPosts();
     } catch (e) {
+      // Revert on error
+      state.whenData((posts) {
+        final revertedPosts = posts.map((post) {
+          if (post.id == postId) {
+            return post.copyWith(
+              isLiked: isCurrentlyLiked,
+              likesCount: isCurrentlyLiked
+                  ? post.likesCount + 1
+                  : post.likesCount - 1,
+            );
+          }
+          return post;
+        }).toList();
+        state = AsyncValue.data(revertedPosts);
+      });
       rethrow;
     }
   }
@@ -67,7 +93,8 @@ class PostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
 }
 
 // Posts provider
-final postsProvider = StateNotifierProvider<PostsNotifier, AsyncValue<List<PostModel>>>((ref) {
-  final postService = ref.watch(postServiceProvider);
-  return PostsNotifier(postService);
-});
+final postsProvider =
+    StateNotifierProvider<PostsNotifier, AsyncValue<List<PostModel>>>((ref) {
+      final postService = ref.watch(postServiceProvider);
+      return PostsNotifier(postService);
+    });

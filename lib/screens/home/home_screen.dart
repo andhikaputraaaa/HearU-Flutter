@@ -2,12 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/common/post_card.dart';
 import '../../providers/post_provider.dart';
+import '../../main.dart';
 import '../post/post_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 // This is now a content widget without navbar
 class HomeScreenContent extends ConsumerStatefulWidget {
-  const HomeScreenContent({super.key});
+  final Function(String)? onViewOtherProfile;
+  final VoidCallback? onViewOwnProfile;
+
+  const HomeScreenContent({
+    super.key,
+    this.onViewOtherProfile,
+    this.onViewOwnProfile,
+  });
 
   @override
   ConsumerState<HomeScreenContent> createState() => _HomeScreenContentState();
@@ -57,6 +65,91 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
       const Color(0xFFB71C1C),
     ];
     return colors[hash.abs() % colors.length];
+  }
+
+  void _showDeleteDialog(BuildContext context, WidgetRef ref, String postId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Hapus Postingan',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(context, ref, postId);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, String postId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Postingan'),
+        content: const Text(
+          'Apakah Anda yakin ingin menghapus postingan ini? Tindakan ini tidak dapat dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await ref.read(postsProvider.notifier).deletePost(postId);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Postingan berhasil dihapus'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus postingan: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -160,6 +253,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
                     : '@${post.user?.username ?? 'unknown'}';
                 final isVerified =
                     false; // Set to false for now, can add field later
+                final isOwnPost = post.userId == supabase.auth.currentUser?.id;
 
                 return PostCard(
                   username: displayName,
@@ -175,16 +269,36 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
                       : _getAvatarColor(post.userId),
                   isAnonymous: post.isAnonymous,
                   avatarUrl: post.isAnonymous ? null : post.user?.avatarUrl,
-                  onTap: () {
-                    Navigator.push(
+                  showDeleteButton: isOwnPost,
+                  onDeleteTap: isOwnPost
+                      ? () => _showDeleteDialog(context, ref, post.id)
+                      : null,
+                  onTap: () async {
+                    final result = await Navigator.push<String>(
                       context,
                       MaterialPageRoute(
                         builder: (context) => PostDetailScreen(post: post),
                       ),
                     );
+                    if (result == 'go_to_profile') {
+                      widget.onViewOwnProfile?.call();
+                    }
                   },
                   onLikeTap: () async {
-                    await ref.read(postsProvider.notifier).toggleLike(post.id, post.isLiked);
+                    await ref
+                        .read(postsProvider.notifier)
+                        .toggleLike(post.id, post.isLiked);
+                  },
+                  onAvatarTap: () {
+                    if (!post.isAnonymous) {
+                      if (post.userId == supabase.auth.currentUser?.id) {
+                        // Navigate to own profile
+                        widget.onViewOwnProfile?.call();
+                      } else {
+                        // Navigate to other user's profile
+                        widget.onViewOtherProfile?.call(post.userId);
+                      }
+                    }
                   },
                 );
               },

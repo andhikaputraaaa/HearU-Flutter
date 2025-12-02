@@ -3,9 +3,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../main.dart';
 import '../models/user_model.dart';
 import '../core/constants/supabase_constants.dart';
+import 'follower_service.dart';
 
 class UserService {
-  // Get user by ID
+  final FollowerService _followerService = FollowerService();
+
+  // Get user by ID with follower stats
   Future<UserModel?> getUserById(String userId) async {
     try {
       final response = await supabase
@@ -14,7 +17,15 @@ class UserService {
           .eq('id', userId)
           .single();
 
-      return UserModel.fromJson(response);
+      // Get follower stats
+      final stats = await _followerService.getUserFollowStats(userId);
+
+      return UserModel.fromJson({
+        ...response,
+        'followers_count': stats['followers_count'],
+        'following_count': stats['following_count'],
+        'is_following': stats['is_following'],
+      });
     } catch (e) {
       return null;
     }

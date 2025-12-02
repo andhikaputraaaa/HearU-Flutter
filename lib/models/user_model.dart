@@ -7,6 +7,9 @@ class UserModel {
   final String? bannerUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final int followersCount;
+  final int followingCount;
+  final bool isFollowing;
 
   UserModel({
     required this.id,
@@ -17,6 +20,9 @@ class UserModel {
     this.bannerUrl,
     required this.createdAt,
     required this.updatedAt,
+    this.followersCount = 0,
+    this.followingCount = 0,
+    this.isFollowing = false,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +35,9 @@ class UserModel {
       bannerUrl: json['banner_url'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      followersCount: json['followers_count'] ?? 0,
+      followingCount: json['following_count'] ?? 0,
+      isFollowing: json['is_following'] ?? false,
     );
   }
 
@@ -54,6 +63,9 @@ class UserModel {
     String? bannerUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
+    int? followersCount,
+    int? followingCount,
+    bool? isFollowing,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -64,6 +76,9 @@ class UserModel {
       bannerUrl: bannerUrl ?? this.bannerUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      followersCount: followersCount ?? this.followersCount,
+      followingCount: followingCount ?? this.followingCount,
+      isFollowing: isFollowing ?? this.isFollowing,
     );
   }
 }

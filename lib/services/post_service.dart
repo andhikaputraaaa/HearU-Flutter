@@ -1,8 +1,10 @@
 import '../main.dart';
 import '../models/post_model.dart';
 import '../core/constants/supabase_constants.dart';
+import 'notification_service.dart';
 
 class PostService {
+  final NotificationService _notificationService = NotificationService();
   // Create post
   Future<PostModel> createPost({
     required String content,
@@ -34,7 +36,7 @@ class PostService {
   Future<List<PostModel>> getPosts({int limit = 20, int offset = 0}) async {
     try {
       final userId = supabase.auth.currentUser?.id;
-      
+
       final response = await supabase
           .from(SupabaseConstants.postsTable)
           .select('''
@@ -50,7 +52,7 @@ class PostService {
         // Count likes and comments
         final likesCount = json['likes']?[0]?['count'] ?? 0;
         final commentsCount = json['comments']?[0]?['count'] ?? 0;
-        
+
         return PostModel.fromJson({
           ...json,
           'likes_count': likesCount,
@@ -99,7 +101,7 @@ class PostService {
       return (response as List).map((json) {
         final likesCount = json['likes']?[0]?['count'] ?? 0;
         final commentsCount = json['comments']?[0]?['count'] ?? 0;
-        
+
         return PostModel.fromJson({
           ...json,
           'likes_count': likesCount,
@@ -121,6 +123,24 @@ class PostService {
         'user_id': userId,
         'post_id': postId,
       });
+
+      // Get post owner and create notification
+      final postResponse = await supabase
+          .from('posts')
+          .select('user_id')
+          .eq('id', postId)
+          .single();
+
+      final postOwnerId = postResponse['user_id'] as String;
+
+      if (postOwnerId != userId) {
+        await _notificationService.createNotification(
+          userId: postOwnerId,
+          actorId: userId,
+          type: 'like',
+          postId: postId,
+        );
+      }
     } catch (e) {
       rethrow;
     }
@@ -137,6 +157,13 @@ class PostService {
           .delete()
           .eq('user_id', userId)
           .eq('post_id', postId);
+
+      // Delete notification
+      await _notificationService.deleteNotification(
+        actorId: userId,
+        type: 'like',
+        postId: postId,
+      );
     } catch (e) {
       rethrow;
     }

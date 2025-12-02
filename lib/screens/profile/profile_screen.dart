@@ -86,6 +86,108 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
     return colors[hash.abs() % colors.length];
   }
 
+  Widget _buildStatItem({required int count, required String label}) {
+    return Column(
+      children: [
+        Text(
+          count.toString(),
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+      ],
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, String postId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Hapus Postingan',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDelete(context, postId);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, String postId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Postingan'),
+        content: const Text(
+          'Apakah Anda yakin ingin menghapus postingan ini? Tindakan ini tidak dapat dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await ref.read(postsProvider.notifier).deletePost(postId);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Postingan berhasil dihapus'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus postingan: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userProfileAsync = ref.watch(currentUserProfileProvider);
@@ -155,7 +257,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(currentUserProfileProvider);
-              ref.invalidate(userPostsProvider);
+              await ref.read(postsProvider.notifier).loadPosts();
             },
             color: const Color(0xFF00BCD4),
             child: SingleChildScrollView(
@@ -198,17 +300,17 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             // Avatar
                             Positioned(
-                              bottom: -50,
+                              bottom: -40,
                               child: Container(
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: Colors.white,
-                                    width: 4,
+                                    width: 3,
                                   ),
                                 ),
                                 child: CircleAvatar(
-                                  radius: 50,
+                                  radius: 40,
                                   backgroundColor: _getAvatarColor(
                                     userProfile.id,
                                   ),
@@ -226,7 +328,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                                                     .toUpperCase()
                                               : '?',
                                           style: const TextStyle(
-                                            fontSize: 36,
+                                            fontSize: 28,
                                             fontWeight: FontWeight.bold,
                                             color: Colors.white,
                                           ),
@@ -237,26 +339,49 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 60),
+                        const SizedBox(height: 48),
                         // Display Name
                         Text(
                           userProfile.displayName ?? userProfile.username,
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         // Username
                         Text(
                           '@${userProfile.username}',
                           style: TextStyle(
-                            fontSize: 15,
+                            fontSize: 13,
                             color: Colors.grey[600],
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
+                        // Followers & Following
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildStatItem(
+                              count: userProfile.followersCount,
+                              label: 'Pengikut',
+                            ),
+                            Container(
+                              width: 1,
+                              height: 20,
+                              color: Colors.grey[300],
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                            ),
+                            _buildStatItem(
+                              count: userProfile.followingCount,
+                              label: 'Mengikuti',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
                         // Bio
                         if (userProfile.bio != null &&
                             userProfile.bio!.isNotEmpty)
@@ -266,12 +391,12 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                               userProfile.bio!,
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: 13,
                                 color: Colors.grey[700],
                               ),
                             ),
                           ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),
@@ -317,8 +442,10 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                     data: (allPosts) {
                       // Filter posts by current user
-                      final userPosts = allPosts.where((post) => post.userId == userId).toList();
-                      
+                      final userPosts = allPosts
+                          .where((post) => post.userId == userId)
+                          .toList();
+
                       if (userPosts.isEmpty) {
                         return Padding(
                           padding: const EdgeInsets.all(32),
@@ -354,9 +481,12 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                           final isAnonymous = post.isAnonymous;
                           final displayName = isAnonymous
                               ? 'Anonim'
-                              : (userProfile.displayName ?? userProfile.username);
-                          final username = isAnonymous ? '' : '@${userProfile.username}';
-                          
+                              : (userProfile.displayName ??
+                                    userProfile.username);
+                          final username = isAnonymous
+                              ? ''
+                              : '@${userProfile.username}';
+
                           return PostCard(
                             username: displayName,
                             handle: username,
@@ -370,17 +500,26 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ? Colors.grey
                                 : _getAvatarColor(userProfile.id),
                             isAnonymous: isAnonymous,
-                            avatarUrl: isAnonymous ? null : userProfile.avatarUrl,
-                            onTap: () {
-                              Navigator.push(
+                            avatarUrl: isAnonymous
+                                ? null
+                                : userProfile.avatarUrl,
+                            showDeleteButton: true,
+                            onDeleteTap: () =>
+                                _showDeleteDialog(context, post.id),
+                            onTap: () async {
+                              // No action needed for 'go_to_profile' since we're already on profile
+                              await Navigator.push<String>(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => PostDetailScreen(post: post),
+                                  builder: (context) =>
+                                      PostDetailScreen(post: post),
                                 ),
                               );
                             },
                             onLikeTap: () async {
-                              await ref.read(postsProvider.notifier).toggleLike(post.id, post.isLiked);
+                              await ref
+                                  .read(postsProvider.notifier)
+                                  .toggleLike(post.id, post.isLiked);
                             },
                           );
                         },

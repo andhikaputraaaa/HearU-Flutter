@@ -6,15 +6,13 @@ import '../../widgets/common/comment_card.dart';
 import '../../providers/comment_provider.dart';
 import '../../providers/post_provider.dart';
 import '../../main.dart';
+import '../profile/other_profile_screen.dart';
 import 'package:intl/intl.dart';
 
 class PostDetailScreen extends ConsumerStatefulWidget {
   final PostModel post;
 
-  const PostDetailScreen({
-    super.key,
-    required this.post,
-  });
+  const PostDetailScreen({super.key, required this.post});
 
   @override
   ConsumerState<PostDetailScreen> createState() => _PostDetailScreenState();
@@ -59,9 +57,182 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     ];
     return colors[hash.abs() % colors.length];
   }
+
+  void _showDeletePostDialog() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Hapus Postingan',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDeletePost();
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeletePost() {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hapus Postingan'),
+        content: const Text(
+          'Apakah Anda yakin ingin menghapus postingan ini? Semua komentar juga akan terhapus. Tindakan ini tidak dapat dibatalkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              try {
+                await ref
+                    .read(postsProvider.notifier)
+                    .deletePost(widget.post.id);
+                scaffoldMessenger.showSnackBar(
+                  const SnackBar(
+                    content: Text('Postingan berhasil dihapus'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                navigator.pop(); // Go back from detail screen
+              } catch (e) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text('Gagal menghapus postingan: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteCommentDialog(String commentId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Hapus Komentar',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmDeleteComment(commentId);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteComment(String commentId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Komentar'),
+        content: const Text('Apakah Anda yakin ingin menghapus komentar ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                await ref
+                    .read(commentsProvider(widget.post.id).notifier)
+                    .deleteComment(commentId);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Komentar berhasil dihapus'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus komentar: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _handleAddComment() async {
     if (_commentController.text.trim().isEmpty) return;
-    
+
     final currentUser = supabase.auth.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -113,17 +284,22 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final username = widget.post.isAnonymous
+    final displayName = widget.post.isAnonymous
         ? 'Anonim'
-        : widget.post.user?.username ?? 'Unknown';
+        : widget.post.user?.displayName ??
+              widget.post.user?.username ??
+              'Unknown';
     final handle = widget.post.isAnonymous
         ? ''
         : '@${widget.post.user?.username ?? 'unknown'}';
+    final avatarUrl = widget.post.isAnonymous
+        ? null
+        : widget.post.user?.avatarUrl;
     final isVerified = false;
 
     // Get comments from provider
     final commentsAsync = ref.watch(commentsProvider(widget.post.id));
-    
+
     // Get updated post data from posts provider
     final postsAsync = ref.watch(postsProvider);
     final currentPost = postsAsync.maybeWhen(
@@ -134,7 +310,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
       orElse: () => widget.post,
     );
 
+    final isOwnPost = currentPost.userId == supabase.auth.currentUser?.id;
+
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -155,10 +334,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
-          child: Container(
-            color: Colors.grey[300],
-            height: 1,
-          ),
+          child: Container(color: Colors.grey[300], height: 1),
         ),
       ),
       body: Column(
@@ -169,7 +345,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               children: [
                 // Post Card with dynamic counter
                 PostCard(
-                  username: username,
+                  username: displayName,
                   handle: handle,
                   isVerified: isVerified,
                   content: currentPost.content,
@@ -184,16 +360,41 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       ? Colors.grey
                       : _getAvatarColor(currentPost.userId),
                   isAnonymous: currentPost.isAnonymous,
+                  avatarUrl: avatarUrl,
+                  showDeleteButton: isOwnPost,
+                  onDeleteTap: isOwnPost ? _showDeletePostDialog : null,
                   onLikeTap: () async {
                     // Call toggleLike from post provider
-                    await ref.read(postsProvider.notifier).toggleLike(currentPost.id, currentPost.isLiked);
+                    await ref
+                        .read(postsProvider.notifier)
+                        .toggleLike(currentPost.id, currentPost.isLiked);
+                  },
+                  onAvatarTap: () {
+                    if (!currentPost.isAnonymous) {
+                      if (currentPost.userId == supabase.auth.currentUser?.id) {
+                        // Pop back to MainScreen and navigate to profile tab
+                        Navigator.pop(context, 'go_to_profile');
+                      } else {
+                        // Navigate to other user's profile
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                OtherProfileScreen(userId: currentPost.userId),
+                          ),
+                        );
+                      }
+                    }
                   },
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Comments Section Header
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   color: Colors.white,
                   child: const Center(
                     child: Text(
@@ -206,11 +407,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     ),
                   ),
                 ),
-                
-                Container(
-                  height: 1,
-                  color: Colors.grey[300],
-                ),
+
+                Container(height: 1, color: Colors.grey[300]),
 
                 // Comments List
                 commentsAsync.when(
@@ -218,7 +416,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     padding: const EdgeInsets.all(32),
                     child: const Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFF00BCD4),
+                        ),
                       ),
                     ),
                   ),
@@ -226,7 +426,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     padding: const EdgeInsets.all(32),
                     child: Column(
                       children: [
-                        Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+                        Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.red[300],
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           'Gagal memuat komentar',
@@ -279,22 +483,46 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
                     return Column(
                       children: comments.map((comment) {
-                        final displayName = comment.displayName ?? comment.username ?? 'Unknown';
+                        final displayName =
+                            comment.displayName ??
+                            comment.username ??
+                            'Unknown';
                         final handle = '@${comment.username ?? 'unknown'}';
-                        
+
                         return CommentCard(
                           username: displayName,
                           handle: handle,
                           isVerified: false,
                           content: comment.content,
                           timestamp: _formatTimestamp(comment.createdAt),
-                          likes: '${comment.likesCount} Suka',
+                          likesCount: comment.likesCount,
+                          isLiked: comment.isLiked,
                           avatarColor: _getAvatarColor(comment.userId),
                           avatarUrl: comment.avatarUrl,
+                          showDeleteButton: isOwnPost,
+                          onDeleteTap: () =>
+                              _showDeleteCommentDialog(comment.id),
                           onLikeTap: () {
                             ref
                                 .read(commentsProvider(widget.post.id).notifier)
                                 .toggleLike(comment.id, comment.isLiked);
+                          },
+                          onAvatarTap: () {
+                            if (comment.userId ==
+                                supabase.auth.currentUser?.id) {
+                              // Pop back to MainScreen and navigate to profile tab
+                              Navigator.pop(context, 'go_to_profile');
+                            } else {
+                              // Navigate to commenter's profile
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => OtherProfileScreen(
+                                    userId: comment.userId,
+                                  ),
+                                ),
+                              );
+                            }
                           },
                         );
                       }).toList(),
@@ -317,11 +545,11 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 ),
               ],
             ),
-            padding: EdgeInsets.only(
+            padding: const EdgeInsets.only(
               left: 16,
               right: 16,
               top: 12,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+              bottom: 12,
             ),
             child: SafeArea(
               child: Row(
@@ -365,8 +593,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   ),
                   const SizedBox(width: 8),
                   Material(
-                    color: _isSubmitting 
-                        ? Colors.grey 
+                    color: _isSubmitting
+                        ? Colors.grey
                         : const Color(0xFF00BCD4),
                     borderRadius: BorderRadius.circular(25),
                     child: InkWell(
@@ -380,7 +608,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
                                 ),
                               )
                             : const Icon(
