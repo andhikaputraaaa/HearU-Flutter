@@ -6,11 +6,14 @@ class PostCard extends StatelessWidget {
   final bool isVerified;
   final String content;
   final String timestamp;
-  final String likes;
-  final String comments;
+  final int likesCount;
+  final int commentsCount;
+  final bool isLiked;
   final Color avatarColor;
   final bool isAnonymous;
   final String? avatarUrl;
+  final VoidCallback? onTap;
+  final VoidCallback? onLikeTap;
 
   const PostCard({
     super.key,
@@ -19,11 +22,14 @@ class PostCard extends StatelessWidget {
     required this.isVerified,
     required this.content,
     required this.timestamp,
-    required this.likes,
-    required this.comments,
+    required this.likesCount,
+    required this.commentsCount,
+    required this.isLiked,
     required this.avatarColor,
     this.isAnonymous = false,
     this.avatarUrl,
+    this.onTap,
+    this.onLikeTap,
   });
 
   @override
@@ -32,12 +38,15 @@ class PostCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User info row
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // User info row
             Row(
               children: [
                 // Avatar
@@ -115,28 +124,56 @@ class PostCard extends StatelessWidget {
             // Actions (like and comment)
             Row(
               children: [
-                Icon(Icons.favorite_border, color: Colors.grey[600], size: 20),
-                const SizedBox(width: 6),
-                Text(
-                  likes,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                InkWell(
+                  onTap: onLikeTap,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isLiked ? Icons.favorite : Icons.favorite_border,
+                          color: isLiked ? Colors.red : Colors.grey[600],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$likesCount Suka',
+                          style: TextStyle(
+                            color: isLiked ? Colors.red : Colors.grey[600],
+                            fontSize: 14,
+                            fontWeight:
+                                isLiked ? FontWeight.w600 : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 24),
-                Icon(
-                  Icons.chat_bubble_outline,
-                  color: Colors.grey[600],
-                  size: 20,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  comments,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                const SizedBox(width: 16),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      color: Colors.grey[600],
+                      size: 20,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$commentsCount Komentar',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    ),
+                  ],
                 ),
               ],
             ),
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

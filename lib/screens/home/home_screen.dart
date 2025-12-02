@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/common/post_card.dart';
 import '../../providers/post_provider.dart';
+import '../post/post_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 // This is now a content widget without navbar
@@ -66,6 +67,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
@@ -165,13 +167,25 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
                   isVerified: isVerified,
                   content: post.content,
                   timestamp: _formatTimestamp(post.createdAt),
-                  likes: '${post.likesCount} Suka',
-                  comments: '${post.commentsCount} Komentar',
+                  likesCount: post.likesCount,
+                  commentsCount: post.commentsCount,
+                  isLiked: post.isLiked,
                   avatarColor: post.isAnonymous
                       ? Colors.grey
                       : _getAvatarColor(post.userId),
                   isAnonymous: post.isAnonymous,
                   avatarUrl: post.isAnonymous ? null : post.user?.avatarUrl,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => PostDetailScreen(post: post),
+                      ),
+                    );
+                  },
+                  onLikeTap: () async {
+                    await ref.read(postsProvider.notifier).toggleLike(post.id, post.isLiked);
+                  },
                 );
               },
             ),

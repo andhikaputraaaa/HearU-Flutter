@@ -5,6 +5,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/post_provider.dart';
 import '../../models/post_model.dart';
 import '../../main.dart';
+import '../../widgets/common/post_card.dart';
+import '../post/post_detail_screen.dart';
 import 'settings_screen.dart';
 
 // Provider untuk mendapatkan postingan user saat ini
@@ -31,7 +33,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
   // Method untuk refresh data dari luar (parent widget)
   Future<void> refreshData() async {
     ref.invalidate(currentUserProfileProvider);
-    ref.invalidate(userPostsProvider);
+    ref.invalidate(postsProvider);
     _scrollToTop();
   }
 
@@ -87,12 +89,14 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final userProfileAsync = ref.watch(currentUserProfileProvider);
-    final userPostsAsync = ref.watch(userPostsProvider);
+    final allPostsAsync = ref.watch(postsProvider);
+    final userId = supabase.auth.currentUser?.id;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
         automaticallyImplyLeading: false,
@@ -290,8 +294,8 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
 
-                  // User Posts
-                  userPostsAsync.when(
+                  // User Posts (filtered from all posts)
+                  allPostsAsync.when(
                     loading: () => const Padding(
                       padding: EdgeInsets.all(32),
                       child: Center(
@@ -311,8 +315,11 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ),
-                    data: (posts) {
-                      if (posts.isEmpty) {
+                    data: (allPosts) {
+                      // Filter posts by current user
+                      final userPosts = allPosts.where((post) => post.userId == userId).toList();
+                      
+                      if (userPosts.isEmpty) {
                         return Padding(
                           padding: const EdgeInsets.all(32),
                           child: Center(
@@ -341,13 +348,40 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         padding: const EdgeInsets.only(bottom: 100),
-                        itemCount: posts.length,
+                        itemCount: userPosts.length,
                         itemBuilder: (context, index) {
-                          final post = posts[index];
-                          return _buildPostCard(
-                            context,
-                            userProfile: userProfile,
-                            post: post,
+                          final post = userPosts[index];
+                          final isAnonymous = post.isAnonymous;
+                          final displayName = isAnonymous
+                              ? 'Anonim'
+                              : (userProfile.displayName ?? userProfile.username);
+                          final username = isAnonymous ? '' : '@${userProfile.username}';
+                          
+                          return PostCard(
+                            username: displayName,
+                            handle: username,
+                            isVerified: false,
+                            content: post.content,
+                            timestamp: _formatTimestamp(post.createdAt),
+                            likesCount: post.likesCount,
+                            commentsCount: post.commentsCount,
+                            isLiked: post.isLiked,
+                            avatarColor: isAnonymous
+                                ? Colors.grey
+                                : _getAvatarColor(userProfile.id),
+                            isAnonymous: isAnonymous,
+                            avatarUrl: isAnonymous ? null : userProfile.avatarUrl,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PostDetailScreen(post: post),
+                                ),
+                              );
+                            },
+                            onLikeTap: () async {
+                              await ref.read(postsProvider.notifier).toggleLike(post.id, post.isLiked);
+                            },
                           );
                         },
                       );
@@ -358,129 +392,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildPostCard(
-    BuildContext context, {
-    required dynamic userProfile,
-    required PostModel post,
-  }) {
-    final isAnonymous = post.isAnonymous;
-    final displayName = isAnonymous
-        ? 'Anonim'
-        : (userProfile.displayName ?? userProfile.username);
-    final username = isAnonymous ? '' : '@${userProfile.username}';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // User info row
-            Row(
-              children: [
-                // Avatar
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: isAnonymous
-                      ? Colors.grey
-                      : _getAvatarColor(userProfile.id),
-                  backgroundImage:
-                      (!isAnonymous &&
-                          userProfile.avatarUrl != null &&
-                          userProfile.avatarUrl!.isNotEmpty)
-                      ? NetworkImage(userProfile.avatarUrl!)
-                      : null,
-                  child: isAnonymous
-                      ? const Icon(Icons.person, color: Colors.white)
-                      : ((userProfile.avatarUrl == null ||
-                                userProfile.avatarUrl!.isEmpty)
-                            ? Text(
-                                userProfile.username.isNotEmpty
-                                    ? userProfile.username[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : null),
-                ),
-                const SizedBox(width: 12),
-                // Username and handle
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      if (username.isNotEmpty)
-                        Text(
-                          username,
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Post content
-            Text(
-              post.content,
-              style: const TextStyle(fontSize: 15, height: 1.4),
-            ),
-            const SizedBox(height: 8),
-            // Timestamp
-            Text(
-              _formatTimestamp(post.createdAt),
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            // Actions (like and comment)
-            Row(
-              children: [
-                Icon(
-                  post.isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: post.isLiked ? Colors.red : Colors.grey[600],
-                  size: 20,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${post.likesCount} Suka',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-                const SizedBox(width: 24),
-                Icon(
-                  Icons.chat_bubble_outline,
-                  color: Colors.grey[600],
-                  size: 20,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${post.commentsCount} Komentar',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
