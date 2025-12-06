@@ -25,6 +25,17 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
   final ScrollController _scrollController = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    // Listen to filter changes and reload posts
+    ref.listenManual(postFilterProvider, (previous, next) {
+      if (previous != next) {
+        ref.read(postsProvider.notifier).loadPosts();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
@@ -155,6 +166,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
   @override
   Widget build(BuildContext context) {
     final postsAsync = ref.watch(postsProvider);
+    final currentFilter = ref.watch(postFilterProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -183,128 +195,213 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
           child: Container(color: Colors.grey[300], height: 1),
         ),
       ),
-      body: postsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
-          ),
-        ),
-        error: (error, stack) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
-              const SizedBox(height: 16),
-              Text(
-                'Gagal memuat postingan',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 8),
-              ElevatedButton(
-                onPressed: () => ref.refresh(postsProvider),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF00BCD4),
+      body: Column(
+        children: [
+          // Filter buttons
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildFilterButton(
+                    'Semua',
+                    PostFilter.all,
+                    currentFilter,
+                    ref,
+                  ),
                 ),
-                child: const Text('Coba Lagi'),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildFilterButton(
+                    'Following',
+                    PostFilter.following,
+                    currentFilter,
+                    ref,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        data: (posts) {
-          if (posts.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.post_add, size: 64, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Belum ada postingan',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Jadilah yang pertama membuat postingan!',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-                  ),
-                ],
+          // Posts list
+          Expanded(
+            child: postsAsync.when(
+              loading: () => const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00BCD4)),
+                ),
               ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(postsProvider.notifier).loadPosts();
-            },
-            color: const Color(0xFF00BCD4),
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.only(top: 8, bottom: 100),
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                final post = posts[index];
-                final displayName = post.isAnonymous
-                    ? 'Anonim'
-                    : post.user?.displayName ??
-                          post.user?.username ??
-                          'Unknown';
-                final handle = post.isAnonymous
-                    ? ''
-                    : '@${post.user?.username ?? 'unknown'}';
-                final isVerified =
-                    false; // Set to false for now, can add field later
-                final isOwnPost = post.userId == supabase.auth.currentUser?.id;
-
-                return PostCard(
-                  username: displayName,
-                  handle: handle,
-                  isVerified: isVerified,
-                  content: post.content,
-                  timestamp: _formatTimestamp(post.createdAt),
-                  likesCount: post.likesCount,
-                  commentsCount: post.commentsCount,
-                  isLiked: post.isLiked,
-                  avatarColor: post.isAnonymous
-                      ? Colors.grey
-                      : _getAvatarColor(post.userId),
-                  isAnonymous: post.isAnonymous,
-                  avatarUrl: post.isAnonymous ? null : post.user?.avatarUrl,
-                  showDeleteButton: isOwnPost,
-                  onDeleteTap: isOwnPost
-                      ? () => _showDeleteDialog(context, ref, post.id)
-                      : null,
-                  onTap: () async {
-                    final result = await Navigator.push<String>(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PostDetailScreen(post: post),
+              error: (error, stack) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.error_outline, size: 48, color: Colors.red[300]),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Gagal memuat postingan',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () => ref.refresh(postsProvider),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF00BCD4),
                       ),
-                    );
-                    if (result == 'go_to_profile') {
-                      widget.onViewOwnProfile?.call();
-                    }
+                      child: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              ),
+              data: (posts) {
+                if (posts.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.post_add, size: 64, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          currentFilter == PostFilter.following
+                              ? 'Belum ada postingan dari Following'
+                              : 'Belum ada postingan',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          currentFilter == PostFilter.following
+                              ? 'Follow pengguna untuk melihat postingan mereka'
+                              : 'Jadilah yang pertama membuat postingan!',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await ref.read(postsProvider.notifier).loadPosts();
                   },
-                  onLikeTap: () async {
-                    await ref
-                        .read(postsProvider.notifier)
-                        .toggleLike(post.id, post.isLiked);
-                  },
-                  onAvatarTap: () {
-                    if (!post.isAnonymous) {
-                      if (post.userId == supabase.auth.currentUser?.id) {
-                        // Navigate to own profile
-                        widget.onViewOwnProfile?.call();
-                      } else {
-                        // Navigate to other user's profile
-                        widget.onViewOtherProfile?.call(post.userId);
-                      }
-                    }
-                  },
+                  color: const Color(0xFF00BCD4),
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.only(top: 8, bottom: 100),
+                    itemCount: posts.length,
+                    cacheExtent: 500,
+                    addAutomaticKeepAlives: true,
+                    addRepaintBoundaries: true,
+                    physics: const BouncingScrollPhysics(),
+                    itemBuilder: (context, index) {
+                      final post = posts[index];
+                      final displayName = post.isAnonymous
+                          ? 'Anonim'
+                          : post.user?.displayName ??
+                                post.user?.username ??
+                                'Unknown';
+                      final handle = post.isAnonymous
+                          ? ''
+                          : '@${post.user?.username ?? 'unknown'}';
+                      final isVerified =
+                          false; // Set to false for now, can add field later
+                      final isOwnPost =
+                          post.userId == supabase.auth.currentUser?.id;
+
+                      return PostCard(
+                        username: displayName,
+                        handle: handle,
+                        isVerified: isVerified,
+                        content: post.content,
+                        timestamp: _formatTimestamp(post.createdAt),
+                        likesCount: post.likesCount,
+                        commentsCount: post.commentsCount,
+                        isLiked: post.isLiked,
+                        avatarColor: post.isAnonymous
+                            ? Colors.grey
+                            : _getAvatarColor(post.userId),
+                        isAnonymous: post.isAnonymous,
+                        avatarUrl: post.isAnonymous
+                            ? null
+                            : post.user?.avatarUrl,
+                        showDeleteButton: isOwnPost,
+                        onDeleteTap: isOwnPost
+                            ? () => _showDeleteDialog(context, ref, post.id)
+                            : null,
+                        onTap: () async {
+                          final result = await Navigator.push<String>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  PostDetailScreen(post: post),
+                            ),
+                          );
+                          if (result == 'go_to_profile') {
+                            widget.onViewOwnProfile?.call();
+                          }
+                        },
+                        onLikeTap: () async {
+                          await ref
+                              .read(postsProvider.notifier)
+                              .toggleLike(post.id, post.isLiked);
+                        },
+                        onAvatarTap: () {
+                          if (!post.isAnonymous) {
+                            if (post.userId == supabase.auth.currentUser?.id) {
+                              // Navigate to own profile
+                              widget.onViewOwnProfile?.call();
+                            } else {
+                              // Navigate to other user's profile
+                              widget.onViewOtherProfile?.call(post.userId);
+                            }
+                          }
+                        },
+                      );
+                    },
+                  ),
                 );
               },
             ),
-          );
-        },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButton(
+    String label,
+    PostFilter filter,
+    PostFilter currentFilter,
+    WidgetRef ref,
+  ) {
+    final isSelected = filter == currentFilter;
+    return GestureDetector(
+      onTap: () {
+        if (filter != currentFilter) {
+          ref.read(postFilterProvider.notifier).state = filter;
+          ref.read(postsProvider.notifier).loadPosts();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF00BCD4) : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.grey[700],
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              fontSize: 14,
+            ),
+          ),
+        ),
       ),
     );
   }

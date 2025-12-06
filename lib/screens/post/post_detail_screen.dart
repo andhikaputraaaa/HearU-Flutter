@@ -22,6 +22,13 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocus = FocusNode();
   bool _isSubmitting = false;
+  late PostModel _currentPost;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentPost = widget.post;
+  }
 
   @override
   void dispose() {
@@ -284,33 +291,23 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = widget.post.isAnonymous
+    final displayName = _currentPost.isAnonymous
         ? 'Anonim'
-        : widget.post.user?.displayName ??
-              widget.post.user?.username ??
+        : _currentPost.user?.displayName ??
+              _currentPost.user?.username ??
               'Unknown';
-    final handle = widget.post.isAnonymous
+    final handle = _currentPost.isAnonymous
         ? ''
-        : '@${widget.post.user?.username ?? 'unknown'}';
-    final avatarUrl = widget.post.isAnonymous
+        : '@${_currentPost.user?.username ?? 'unknown'}';
+    final avatarUrl = _currentPost.isAnonymous
         ? null
-        : widget.post.user?.avatarUrl;
+        : _currentPost.user?.avatarUrl;
     final isVerified = false;
 
     // Get comments from provider
-    final commentsAsync = ref.watch(commentsProvider(widget.post.id));
+    final commentsAsync = ref.watch(commentsProvider(_currentPost.id));
 
-    // Get updated post data from posts provider
-    final postsAsync = ref.watch(postsProvider);
-    final currentPost = postsAsync.maybeWhen(
-      data: (posts) => posts.firstWhere(
-        (p) => p.id == widget.post.id,
-        orElse: () => widget.post,
-      ),
-      orElse: () => widget.post,
-    );
-
-    final isOwnPost = currentPost.userId == supabase.auth.currentUser?.id;
+    final isOwnPost = _currentPost.userId == supabase.auth.currentUser?.id;
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -342,36 +339,80 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.only(top: 8, bottom: 16),
+              cacheExtent: 500,
+              physics: const BouncingScrollPhysics(),
               children: [
                 // Post Card with dynamic counter
                 PostCard(
                   username: displayName,
                   handle: handle,
                   isVerified: isVerified,
-                  content: currentPost.content,
-                  timestamp: _formatTimestamp(currentPost.createdAt),
-                  likesCount: currentPost.likesCount,
+                  content: _currentPost.content,
+                  timestamp: _formatTimestamp(_currentPost.createdAt),
+                  likesCount: _currentPost.likesCount,
                   commentsCount: commentsAsync.maybeWhen(
                     data: (comments) => comments.length,
-                    orElse: () => currentPost.commentsCount,
+                    orElse: () => _currentPost.commentsCount,
                   ),
-                  isLiked: currentPost.isLiked,
-                  avatarColor: currentPost.isAnonymous
+                  isLiked: _currentPost.isLiked,
+                  avatarColor: _currentPost.isAnonymous
                       ? Colors.grey
-                      : _getAvatarColor(currentPost.userId),
-                  isAnonymous: currentPost.isAnonymous,
+                      : _getAvatarColor(_currentPost.userId),
+                  isAnonymous: _currentPost.isAnonymous,
                   avatarUrl: avatarUrl,
                   showDeleteButton: isOwnPost,
                   onDeleteTap: isOwnPost ? _showDeletePostDialog : null,
                   onLikeTap: () async {
-                    // Call toggleLike from post provider
-                    await ref
-                        .read(postsProvider.notifier)
-                        .toggleLike(currentPost.id, currentPost.isLiked);
+                    // Update local state immediately (optimistic update)
+                    setState(() {
+                      _currentPost = _currentPost.copyWith(
+                        isLiked: !_currentPost.isLiked,
+                        likesCount: _currentPost.isLiked
+                            ? _currentPost.likesCount - 1
+                            : _currentPost.likesCount + 1,
+                      );
+                    });
+
+                    try {
+                      // Call service directly
+                      final postService = ref.read(postServiceProvider);
+                      if (!_currentPost.isLiked) {
+                        await postService.unlikePost(_currentPost.id);
+                      } else {
+                        await postService.likePost(_currentPost.id);
+                      }
+
+                      // Also update all relevant providers
+                      ref
+                          .read(postsProvider.notifier)
+                          .toggleLike(
+                            _currentPost.id,
+                            !_currentPost.isLiked, // Pass the old state
+                          );
+                    } catch (e) {
+                      // Revert on error
+                      setState(() {
+                        _currentPost = _currentPost.copyWith(
+                          isLiked: !_currentPost.isLiked,
+                          likesCount: _currentPost.isLiked
+                              ? _currentPost.likesCount - 1
+                              : _currentPost.likesCount + 1,
+                        );
+                      });
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Gagal: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
                   },
                   onAvatarTap: () {
-                    if (!currentPost.isAnonymous) {
-                      if (currentPost.userId == supabase.auth.currentUser?.id) {
+                    if (!_currentPost.isAnonymous) {
+                      if (_currentPost.userId ==
+                          supabase.auth.currentUser?.id) {
                         // Pop back to MainScreen and navigate to profile tab
                         Navigator.pop(context, 'go_to_profile');
                       } else {
@@ -380,7 +421,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                OtherProfileScreen(userId: currentPost.userId),
+                                OtherProfileScreen(userId: _currentPost.userId),
                           ),
                         );
                       }

@@ -4,7 +4,9 @@ import 'package:intl/intl.dart';
 import '../../providers/post_provider.dart';
 import '../../providers/follower_provider.dart';
 import '../../models/user_model.dart';
+import '../../models/post_model.dart';
 import '../../services/user_service.dart';
+import '../../services/post_service.dart';
 import '../../widgets/common/post_card.dart';
 import '../post/post_detail_screen.dart';
 
@@ -16,6 +18,84 @@ final otherUserProfileProvider = FutureProvider.family<UserModel?, String>((
   final userService = UserService();
   return await userService.getUserById(userId);
 });
+
+// Other user posts state notifier
+class OtherUserPostsNotifier
+    extends StateNotifier<AsyncValue<List<PostModel>>> {
+  final PostService _postService;
+  final String _userId;
+
+  OtherUserPostsNotifier(this._postService, this._userId)
+    : super(const AsyncValue.loading()) {
+    loadPosts();
+  }
+
+  Future<void> loadPosts() async {
+    state = const AsyncValue.loading();
+    try {
+      final allPosts = await _postService.getUserPosts(_userId);
+      // Filter out anonymous posts for other user's profile
+      final posts = allPosts.where((post) => !post.isAnonymous).toList();
+      state = AsyncValue.data(posts);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
+  Future<void> toggleLike(String postId, bool isCurrentlyLiked) async {
+    // Optimistic update - update state immediately
+    state.whenData((posts) {
+      final updatedPosts = posts.map((post) {
+        if (post.id == postId) {
+          return post.copyWith(
+            isLiked: !isCurrentlyLiked,
+            likesCount: isCurrentlyLiked
+                ? post.likesCount - 1
+                : post.likesCount + 1,
+          );
+        }
+        return post;
+      }).toList();
+      state = AsyncValue.data(updatedPosts);
+    });
+
+    try {
+      if (isCurrentlyLiked) {
+        await _postService.unlikePost(postId);
+      } else {
+        await _postService.likePost(postId);
+      }
+    } catch (e) {
+      // Revert on error
+      state.whenData((posts) {
+        final revertedPosts = posts.map((post) {
+          if (post.id == postId) {
+            return post.copyWith(
+              isLiked: isCurrentlyLiked,
+              likesCount: isCurrentlyLiked
+                  ? post.likesCount + 1
+                  : post.likesCount - 1,
+            );
+          }
+          return post;
+        }).toList();
+        state = AsyncValue.data(revertedPosts);
+      });
+      rethrow;
+    }
+  }
+}
+
+// Provider untuk mendapatkan postingan user lain (non-anonymous)
+final otherUserPostsProvider =
+    StateNotifierProvider.family<
+      OtherUserPostsNotifier,
+      AsyncValue<List<PostModel>>,
+      String
+    >((ref, userId) {
+      final postService = ref.watch(postServiceProvider);
+      return OtherUserPostsNotifier(postService, userId);
+    });
 
 class OtherProfileScreen extends ConsumerStatefulWidget {
   final String userId;
@@ -98,7 +178,7 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final userProfileAsync = ref.watch(otherUserProfileProvider(widget.userId));
-    final allPostsAsync = ref.watch(postsProvider);
+    final userPostsAsync = ref.watch(otherUserPostsProvider(widget.userId));
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -160,7 +240,9 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(otherUserProfileProvider(widget.userId));
-              ref.invalidate(postsProvider);
+              await ref
+                  .read(otherUserPostsProvider(widget.userId).notifier)
+                  .loadPosts();
             },
             color: const Color(0xFF00BCD4),
             child: SingleChildScrollView(
@@ -398,7 +480,7 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                   ),
 
                   // User Posts (filtered - exclude anonymous posts)
-                  allPostsAsync.when(
+                  userPostsAsync.when(
                     loading: () => const Padding(
                       padding: EdgeInsets.all(32),
                       child: Center(
@@ -418,16 +500,7 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                         ),
                       ),
                     ),
-                    data: (allPosts) {
-                      // Filter posts by this user AND exclude anonymous posts
-                      final userPosts = allPosts
-                          .where(
-                            (post) =>
-                                post.userId == widget.userId &&
-                                !post.isAnonymous,
-                          )
-                          .toList();
-
+                    data: (userPosts) {
                       if (userPosts.isEmpty) {
                         return Padding(
                           padding: const EdgeInsets.all(32),
@@ -458,6 +531,9 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                         physics: const NeverScrollableScrollPhysics(),
                         padding: const EdgeInsets.only(bottom: 100),
                         itemCount: userPosts.length,
+                        cacheExtent: 500,
+                        addAutomaticKeepAlives: true,
+                        addRepaintBoundaries: true,
                         itemBuilder: (context, index) {
                           final post = userPosts[index];
                           final displayName =
@@ -494,7 +570,11 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                             },
                             onLikeTap: () async {
                               await ref
-                                  .read(postsProvider.notifier)
+                                  .read(
+                                    otherUserPostsProvider(
+                                      widget.userId,
+                                    ).notifier,
+                                  )
                                   .toggleLike(post.id, post.isLiked);
                             },
                           );

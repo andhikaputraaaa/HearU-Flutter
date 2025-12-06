@@ -7,18 +7,29 @@ final postServiceProvider = Provider<PostService>((ref) {
   return PostService();
 });
 
+// Post filter enum
+enum PostFilter { all, following }
+
+// Post filter state provider
+final postFilterProvider = StateProvider<PostFilter>((ref) => PostFilter.all);
+
 // Posts list state notifier
 class PostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   final PostService _postService;
+  final Ref _ref;
 
-  PostsNotifier(this._postService) : super(const AsyncValue.loading()) {
+  PostsNotifier(this._postService, this._ref)
+    : super(const AsyncValue.loading()) {
     loadPosts();
   }
 
   Future<void> loadPosts() async {
     state = const AsyncValue.loading();
     try {
-      final posts = await _postService.getPosts();
+      final filter = _ref.read(postFilterProvider);
+      final posts = filter == PostFilter.following
+          ? await _postService.getFollowingPosts()
+          : await _postService.getPosts();
       state = AsyncValue.data(posts);
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
@@ -96,5 +107,5 @@ class PostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
 final postsProvider =
     StateNotifierProvider<PostsNotifier, AsyncValue<List<PostModel>>>((ref) {
       final postService = ref.watch(postServiceProvider);
-      return PostsNotifier(postService);
+      return PostsNotifier(postService, ref);
     });

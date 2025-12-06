@@ -87,6 +87,8 @@ class PostService {
   // Get user posts
   Future<List<PostModel>> getUserPosts(String userId) async {
     try {
+      final currentUserId = supabase.auth.currentUser?.id;
+
       final response = await supabase
           .from(SupabaseConstants.postsTable)
           .select('''
@@ -98,7 +100,7 @@ class PostService {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return (response as List).map((json) {
+      final posts = (response as List).map((json) {
         final likesCount = json['likes']?[0]?['count'] ?? 0;
         final commentsCount = json['comments']?[0]?['count'] ?? 0;
 
@@ -108,6 +110,98 @@ class PostService {
           'comments_count': commentsCount,
         });
       }).toList();
+
+      // Check if current user liked each post
+      if (currentUserId != null && posts.isNotEmpty) {
+        final postIds = posts.map((p) => p.id).toList();
+        final userLikes = await supabase
+            .from(SupabaseConstants.likesTable)
+            .select('post_id')
+            .eq('user_id', currentUserId)
+            .inFilter('post_id', postIds);
+
+        final likedPostIds = (userLikes as List)
+            .map((like) => like['post_id'] as String)
+            .toSet();
+
+        return posts.map((post) {
+          return post.copyWith(isLiked: likedPostIds.contains(post.id));
+        }).toList();
+      }
+
+      return posts;
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // Get posts from following users only
+  Future<List<PostModel>> getFollowingPosts({
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return [];
+
+      // Get list of users that current user is following
+      final followingResponse = await supabase
+          .from('followers')
+          .select('following_id')
+          .eq('follower_id', userId);
+
+      final followingIds = (followingResponse as List)
+          .map((f) => f['following_id'] as String)
+          .toList();
+
+      if (followingIds.isEmpty) {
+        return [];
+      }
+
+      // Get posts from following users (exclude anonymous posts)
+      final response = await supabase
+          .from(SupabaseConstants.postsTable)
+          .select('''
+            *,
+            users(*),
+            likes(count),
+            comments(count)
+          ''')
+          .inFilter('user_id', followingIds)
+          .eq('is_anonymous', false)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      final posts = (response as List).map((json) {
+        final likesCount = json['likes']?[0]?['count'] ?? 0;
+        final commentsCount = json['comments']?[0]?['count'] ?? 0;
+
+        return PostModel.fromJson({
+          ...json,
+          'likes_count': likesCount,
+          'comments_count': commentsCount,
+        });
+      }).toList();
+
+      // Check if current user liked each post
+      final postIds = posts.map((p) => p.id).toList();
+      if (postIds.isNotEmpty) {
+        final userLikes = await supabase
+            .from(SupabaseConstants.likesTable)
+            .select('post_id')
+            .eq('user_id', userId)
+            .inFilter('post_id', postIds);
+
+        final likedPostIds = (userLikes as List)
+            .map((like) => like['post_id'] as String)
+            .toSet();
+
+        return posts.map((post) {
+          return post.copyWith(isLiked: likedPostIds.contains(post.id));
+        }).toList();
+      }
+
+      return posts;
     } catch (e) {
       rethrow;
     }
@@ -118,6 +212,19 @@ class PostService {
     try {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
+
+      // Check if already liked to prevent duplicate
+      final existingLike = await supabase
+          .from(SupabaseConstants.likesTable)
+          .select('id')
+          .eq('user_id', userId)
+          .eq('post_id', postId)
+          .maybeSingle();
+
+      // If already liked, just return without error
+      if (existingLike != null) {
+        return;
+      }
 
       await supabase.from(SupabaseConstants.likesTable).insert({
         'user_id': userId,
@@ -178,6 +285,60 @@ class PostService {
           .eq('id', postId);
     } catch (e) {
       rethrow;
+    }
+  }
+
+  // Search posts by content
+  Future<List<PostModel>> searchPosts(String query) async {
+    try {
+      if (query.trim().isEmpty) return [];
+
+      final userId = supabase.auth.currentUser?.id;
+
+      final response = await supabase
+          .from(SupabaseConstants.postsTable)
+          .select('''
+            *,
+            users(*),
+            likes(count),
+            comments(count)
+          ''')
+          .ilike('content', '%$query%')
+          .order('created_at', ascending: false)
+          .limit(50);
+
+      final posts = (response as List).map((json) {
+        final likesCount = json['likes']?[0]?['count'] ?? 0;
+        final commentsCount = json['comments']?[0]?['count'] ?? 0;
+
+        return PostModel.fromJson({
+          ...json,
+          'likes_count': likesCount,
+          'comments_count': commentsCount,
+        });
+      }).toList();
+
+      // Check if current user liked each post
+      if (userId != null && posts.isNotEmpty) {
+        final postIds = posts.map((p) => p.id).toList();
+        final userLikes = await supabase
+            .from(SupabaseConstants.likesTable)
+            .select('post_id')
+            .eq('user_id', userId)
+            .inFilter('post_id', postIds);
+
+        final likedPostIds = (userLikes as List)
+            .map((like) => like['post_id'] as String)
+            .toSet();
+
+        return posts.map((post) {
+          return post.copyWith(isLiked: likedPostIds.contains(post.id));
+        }).toList();
+      }
+
+      return posts;
+    } catch (e) {
+      return [];
     }
   }
 }

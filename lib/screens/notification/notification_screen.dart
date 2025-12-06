@@ -219,14 +219,12 @@ class NotificationScreenState extends ConsumerState<NotificationScreen> {
                   children: [
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      child: Center(
-                        child: const Text(
-                          'Notifikasi',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black,
-                          ),
+                      child: const Text(
+                        'Notifikasi',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),

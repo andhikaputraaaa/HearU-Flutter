@@ -15,8 +15,8 @@ class FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFF1E3A5F),
         borderRadius: BorderRadius.circular(30),
@@ -33,12 +33,16 @@ class FloatingNavBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildNavItem(Icons.home, 0),
-          const SizedBox(width: 30),
-          _buildNavItem(Icons.edit, 1),
-          const SizedBox(width: 30),
-          _buildNotificationNavItem(2),
-          const SizedBox(width: 30),
-          _buildNavItem(Icons.person, 3),
+          const SizedBox(width: 10),
+          _buildNavItem(Icons.search, 1),
+          const SizedBox(width: 10),
+          _buildNavItem(Icons.edit, 2),
+          const SizedBox(width: 10),
+          _buildNotificationNavItem(3),
+          const SizedBox(width: 10),
+          _buildNavItem(Icons.people, 4),
+          const SizedBox(width: 10),
+          _buildNavItem(Icons.person, 5),
         ],
       ),
     );
@@ -50,7 +54,7 @@ class FloatingNavBar extends StatelessWidget {
       onTap: () => onTap(index),
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: isSelected
               ? Colors.white.withOpacity(0.2)
@@ -59,7 +63,7 @@ class FloatingNavBar extends StatelessWidget {
         ),
         child: Icon(
           icon,
-          size: 28,
+          size: 24,
           color: isSelected ? Colors.white : Colors.white70,
         ),
       ),
@@ -72,7 +76,7 @@ class FloatingNavBar extends StatelessWidget {
       onTap: () => onTap(index),
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: isSelected
               ? Colors.white.withOpacity(0.2)
@@ -84,7 +88,7 @@ class FloatingNavBar extends StatelessWidget {
           children: [
             Icon(
               Icons.notifications,
-              size: 28,
+              size: 24,
               color: isSelected ? Colors.white : Colors.white70,
             ),
             if (notificationCount > 0)
@@ -92,20 +96,20 @@ class FloatingNavBar extends StatelessWidget {
                 top: -6,
                 right: -6,
                 child: Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: const EdgeInsets.all(3),
                   decoration: const BoxDecoration(
                     color: Colors.red,
                     shape: BoxShape.circle,
                   ),
                   constraints: const BoxConstraints(
-                    minWidth: 18,
-                    minHeight: 18,
+                    minWidth: 16,
+                    minHeight: 16,
                   ),
                   child: Text(
                     notificationCount > 99 ? '99+' : '$notificationCount',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,

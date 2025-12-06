@@ -121,4 +121,29 @@ class UserService {
       return false;
     }
   }
+
+  // Search users by username or display name
+  Future<List<UserModel>> searchUsers(String query) async {
+    try {
+      if (query.trim().isEmpty) return [];
+
+      final response = await supabase
+          .from(SupabaseConstants.usersTable)
+          .select()
+          .or('username.ilike.%$query%,display_name.ilike.%$query%')
+          .order('username')
+          .limit(50);
+
+      return (response as List)
+          .map((json) => UserModel.fromJson(json))
+          .toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Get current user ID
+  String? getCurrentUserId() {
+    return supabase.auth.currentUser?.id;
+  }
 }

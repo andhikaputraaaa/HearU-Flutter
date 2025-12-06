@@ -4,19 +4,99 @@ import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/post_provider.dart';
 import '../../models/post_model.dart';
+import '../../services/post_service.dart';
 import '../../main.dart';
 import '../../widgets/common/post_card.dart';
 import '../post/post_detail_screen.dart';
 import 'settings_screen.dart';
 
-// Provider untuk mendapatkan postingan user saat ini
-final userPostsProvider = FutureProvider<List<PostModel>>((ref) async {
-  final userId = supabase.auth.currentUser?.id;
-  if (userId == null) return [];
+// User posts state notifier
+class UserPostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
+  final PostService _postService;
+  final String? _userId;
 
-  final postService = ref.watch(postServiceProvider);
-  return await postService.getUserPosts(userId);
-});
+  UserPostsNotifier(this._postService, this._userId)
+    : super(const AsyncValue.loading()) {
+    loadPosts();
+  }
+
+  Future<void> loadPosts() async {
+    if (_userId == null) {
+      state = const AsyncValue.data([]);
+      return;
+    }
+
+    state = const AsyncValue.loading();
+    try {
+      final posts = await _postService.getUserPosts(_userId);
+      state = AsyncValue.data(posts);
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+    }
+  }
+
+  Future<void> toggleLike(String postId, bool isCurrentlyLiked) async {
+    // Optimistic update - update state immediately
+    state.whenData((posts) {
+      final updatedPosts = posts.map((post) {
+        if (post.id == postId) {
+          return post.copyWith(
+            isLiked: !isCurrentlyLiked,
+            likesCount: isCurrentlyLiked
+                ? post.likesCount - 1
+                : post.likesCount + 1,
+          );
+        }
+        return post;
+      }).toList();
+      state = AsyncValue.data(updatedPosts);
+    });
+
+    try {
+      if (isCurrentlyLiked) {
+        await _postService.unlikePost(postId);
+      } else {
+        await _postService.likePost(postId);
+      }
+    } catch (e) {
+      // Revert on error
+      state.whenData((posts) {
+        final revertedPosts = posts.map((post) {
+          if (post.id == postId) {
+            return post.copyWith(
+              isLiked: isCurrentlyLiked,
+              likesCount: isCurrentlyLiked
+                  ? post.likesCount + 1
+                  : post.likesCount - 1,
+            );
+          }
+          return post;
+        }).toList();
+        state = AsyncValue.data(revertedPosts);
+      });
+      rethrow;
+    }
+  }
+
+  Future<void> deletePost(String postId) async {
+    try {
+      await _postService.deletePost(postId);
+      await loadPosts();
+    } catch (e) {
+      rethrow;
+    }
+  }
+}
+
+// Provider untuk mendapatkan postingan user saat ini
+final userPostsProvider =
+    StateNotifierProvider<UserPostsNotifier, AsyncValue<List<PostModel>>>((
+      ref,
+    ) {
+      final userId = supabase.auth.currentUser?.id;
+      final postService = ref.watch(postServiceProvider);
+      return UserPostsNotifier(postService, userId);
+    });
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key, this.onRefreshRequested});
@@ -33,7 +113,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
   // Method untuk refresh data dari luar (parent widget)
   Future<void> refreshData() async {
     ref.invalidate(currentUserProfileProvider);
-    ref.invalidate(postsProvider);
+    await ref.read(userPostsProvider.notifier).loadPosts();
     _scrollToTop();
   }
 
@@ -161,7 +241,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await ref.read(postsProvider.notifier).deletePost(postId);
+                await ref.read(userPostsProvider.notifier).deletePost(postId);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -191,8 +271,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final userProfileAsync = ref.watch(currentUserProfileProvider);
-    final allPostsAsync = ref.watch(postsProvider);
-    final userId = supabase.auth.currentUser?.id;
+    final userPostsAsync = ref.watch(userPostsProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -257,7 +336,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(currentUserProfileProvider);
-              await ref.read(postsProvider.notifier).loadPosts();
+              await ref.read(userPostsProvider.notifier).loadPosts();
             },
             color: const Color(0xFF00BCD4),
             child: SingleChildScrollView(
@@ -420,7 +499,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
 
                   // User Posts (filtered from all posts)
-                  allPostsAsync.when(
+                  userPostsAsync.when(
                     loading: () => const Padding(
                       padding: EdgeInsets.all(32),
                       child: Center(
@@ -440,12 +519,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ),
-                    data: (allPosts) {
-                      // Filter posts by current user
-                      final userPosts = allPosts
-                          .where((post) => post.userId == userId)
-                          .toList();
-
+                    data: (userPosts) {
                       if (userPosts.isEmpty) {
                         return Padding(
                           padding: const EdgeInsets.all(32),
@@ -476,6 +550,9 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                         physics: const NeverScrollableScrollPhysics(),
                         padding: const EdgeInsets.only(bottom: 100),
                         itemCount: userPosts.length,
+                        cacheExtent: 500,
+                        addAutomaticKeepAlives: true,
+                        addRepaintBoundaries: true,
                         itemBuilder: (context, index) {
                           final post = userPosts[index];
                           final isAnonymous = post.isAnonymous;
@@ -518,7 +595,7 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                             },
                             onLikeTap: () async {
                               await ref
-                                  .read(postsProvider.notifier)
+                                  .read(userPostsProvider.notifier)
                                   .toggleLike(post.id, post.isLiked);
                             },
                           );
