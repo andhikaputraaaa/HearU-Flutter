@@ -124,7 +124,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(dialogContext); // Close dialog
+              Navigator.pop(dialogContext);
               try {
                 await ref
                     .read(postsProvider.notifier)
@@ -135,7 +135,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     backgroundColor: Colors.green,
                   ),
                 );
-                navigator.pop(); // Go back from detail screen
+                navigator.pop();
               } catch (e) {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(
@@ -304,7 +304,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         : _currentPost.user?.avatarUrl;
     final isVerified = false;
 
-    // Get comments from provider
     final commentsAsync = ref.watch(commentsProvider(_currentPost.id));
 
     final isOwnPost = _currentPost.userId == supabase.auth.currentUser?.id;
@@ -342,7 +341,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
               cacheExtent: 500,
               physics: const BouncingScrollPhysics(),
               children: [
-                // Post Card with dynamic counter
                 PostCard(
                   username: displayName,
                   handle: handle,
@@ -363,7 +361,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                   showDeleteButton: isOwnPost,
                   onDeleteTap: isOwnPost ? _showDeletePostDialog : null,
                   onLikeTap: () async {
-                    // Update local state immediately (optimistic update)
                     setState(() {
                       _currentPost = _currentPost.copyWith(
                         isLiked: !_currentPost.isLiked,
@@ -374,7 +371,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     });
 
                     try {
-                      // Call service directly
                       final postService = ref.read(postServiceProvider);
                       if (!_currentPost.isLiked) {
                         await postService.unlikePost(_currentPost.id);
@@ -382,15 +378,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         await postService.likePost(_currentPost.id);
                       }
 
-                      // Also update all relevant providers
                       ref
                           .read(postsProvider.notifier)
-                          .toggleLike(
-                            _currentPost.id,
-                            !_currentPost.isLiked, // Pass the old state
-                          );
+                          .toggleLike(_currentPost.id, !_currentPost.isLiked);
                     } catch (e) {
-                      // Revert on error
                       setState(() {
                         _currentPost = _currentPost.copyWith(
                           isLiked: !_currentPost.isLiked,
@@ -413,10 +404,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                     if (!_currentPost.isAnonymous) {
                       if (_currentPost.userId ==
                           supabase.auth.currentUser?.id) {
-                        // Pop back to MainScreen and navigate to profile tab
                         Navigator.pop(context, 'go_to_profile');
                       } else {
-                        // Navigate to other user's profile
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -430,7 +419,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                // Comments Section Header
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -451,7 +439,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
 
                 Container(height: 1, color: Colors.grey[300]),
 
-                // Comments List
                 commentsAsync.when(
                   loading: () => Container(
                     padding: const EdgeInsets.all(32),
@@ -551,10 +538,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                           onAvatarTap: () {
                             if (comment.userId ==
                                 supabase.auth.currentUser?.id) {
-                              // Pop back to MainScreen and navigate to profile tab
                               Navigator.pop(context, 'go_to_profile');
                             } else {
-                              // Navigate to commenter's profile
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -574,7 +559,6 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
             ),
           ),
 
-          // Comment Input Field
           Container(
             decoration: BoxDecoration(
               color: Colors.white,

@@ -100,7 +100,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         bottom: false,
         child: Column(
           children: [
-            // Header Section - Gunakan height tetap, bukan flex
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(8, 8, 24, 24),
@@ -108,7 +107,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Back Button
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
@@ -116,7 +114,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(height: 16),
-                  // Title
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -132,7 +129,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer feugiat vitae sem eget mollis.',
+                          'Bergabunglah dengan komunitas HearU. Tempat aman untuk berbagi cerita dan mendengarkan satu sama lain.',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.white,
@@ -148,7 +145,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
             ),
 
-            // Form Container - Ambil sisa ruang
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -168,7 +164,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       children: [
                         const SizedBox(height: 16),
 
-                        // Username Field
                         CustomTextField(
                           hint: 'Username',
                           controller: _usernameController,
@@ -177,7 +172,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                         const SizedBox(height: 16),
 
-                        // Email Field
                         CustomTextField(
                           hint: 'Email',
                           controller: _emailController,
@@ -187,7 +181,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                         const SizedBox(height: 16),
 
-                        // Password Field
                         CustomTextField(
                           hint: 'Password',
                           controller: _passwordController,
@@ -197,7 +190,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                         const SizedBox(height: 32),
 
-                        // Register Button
                         CustomButton(
                           text: 'Daftar',
                           onPressed: _signUp,
@@ -207,12 +199,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Google Sign In Button
                         _buildGoogleButton(),
 
                         const SizedBox(height: 32),
 
-                        // Sign In Link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -282,7 +272,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                // Google Icon
                 Image.asset(
                   'assets/images/google_logo.png',
                   width: 20,

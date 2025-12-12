@@ -38,7 +38,6 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           const SizedBox(height: 16),
-          // Account Section
           _buildSectionHeader('Akun'),
           _buildSettingItem(
             icon: Icons.person_outline,
@@ -71,13 +70,11 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           const SizedBox(height: 16),
-          // App Section
           _buildSectionHeader('Aplikasi'),
           _buildSettingItem(
             icon: Icons.dark_mode_outlined,
             title: 'Tema',
             onTap: () {
-              // TODO: Navigate to theme settings
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Fitur tema akan segera hadir!')),
               );
@@ -85,7 +82,6 @@ class SettingsScreen extends ConsumerWidget {
           ),
 
           const SizedBox(height: 24),
-          // Logout Button
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton(

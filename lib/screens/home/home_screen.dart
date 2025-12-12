@@ -6,7 +6,6 @@ import '../../main.dart';
 import '../post/post_detail_screen.dart';
 import 'package:intl/intl.dart';
 
-// This is now a content widget without navbar
 class HomeScreenContent extends ConsumerStatefulWidget {
   final Function(String)? onViewOtherProfile;
   final VoidCallback? onViewOwnProfile;
@@ -27,7 +26,6 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
   @override
   void initState() {
     super.initState();
-    // Listen to filter changes and reload posts
     ref.listenManual(postFilterProvider, (previous, next) {
       if (previous != next) {
         ref.read(postsProvider.notifier).loadPosts();
@@ -65,7 +63,6 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
   }
 
   Color _getAvatarColor(String userId) {
-    // Generate color based on userId hash
     final hash = userId.hashCode;
     final colors = [
       Colors.black,
@@ -197,7 +194,6 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
       ),
       body: Column(
         children: [
-          // Filter buttons
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -223,7 +219,6 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
               ],
             ),
           ),
-          // Posts list
           Expanded(
             child: postsAsync.when(
               loading: () => const Center(
@@ -307,8 +302,7 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
                       final handle = post.isAnonymous
                           ? ''
                           : '@${post.user?.username ?? 'unknown'}';
-                      final isVerified =
-                          false; // Set to false for now, can add field later
+                      final isVerified = false;
                       final isOwnPost =
                           post.userId == supabase.auth.currentUser?.id;
 
@@ -352,10 +346,8 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
                         onAvatarTap: () {
                           if (!post.isAnonymous) {
                             if (post.userId == supabase.auth.currentUser?.id) {
-                              // Navigate to own profile
                               widget.onViewOwnProfile?.call();
                             } else {
-                              // Navigate to other user's profile
                               widget.onViewOtherProfile?.call(post.userId);
                             }
                           }
@@ -407,13 +399,11 @@ class _HomeScreenContentState extends ConsumerState<HomeScreenContent> {
   }
 }
 
-// Keep backward compatibility - redirect to MainScreen
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // This will be replaced by MainScreen in app.dart
     return const HomeScreenContent();
   }
 }

@@ -10,7 +10,6 @@ import '../../services/post_service.dart';
 import '../../widgets/common/post_card.dart';
 import '../post/post_detail_screen.dart';
 
-// Provider untuk mendapatkan profil user lain berdasarkan userId
 final otherUserProfileProvider = FutureProvider.family<UserModel?, String>((
   ref,
   userId,
@@ -19,7 +18,6 @@ final otherUserProfileProvider = FutureProvider.family<UserModel?, String>((
   return await userService.getUserById(userId);
 });
 
-// Other user posts state notifier
 class OtherUserPostsNotifier
     extends StateNotifier<AsyncValue<List<PostModel>>> {
   final PostService _postService;
@@ -34,7 +32,6 @@ class OtherUserPostsNotifier
     state = const AsyncValue.loading();
     try {
       final allPosts = await _postService.getUserPosts(_userId);
-      // Filter out anonymous posts for other user's profile
       final posts = allPosts.where((post) => !post.isAnonymous).toList();
       state = AsyncValue.data(posts);
     } catch (e, stack) {
@@ -43,7 +40,6 @@ class OtherUserPostsNotifier
   }
 
   Future<void> toggleLike(String postId, bool isCurrentlyLiked) async {
-    // Optimistic update - update state immediately
     state.whenData((posts) {
       final updatedPosts = posts.map((post) {
         if (post.id == postId) {
@@ -66,7 +62,6 @@ class OtherUserPostsNotifier
         await _postService.likePost(postId);
       }
     } catch (e) {
-      // Revert on error
       state.whenData((posts) {
         final revertedPosts = posts.map((post) {
           if (post.id == postId) {
@@ -86,7 +81,6 @@ class OtherUserPostsNotifier
   }
 }
 
-// Provider untuk mendapatkan postingan user lain (non-anonymous)
 final otherUserPostsProvider =
     StateNotifierProvider.family<
       OtherUserPostsNotifier,
@@ -250,17 +244,14 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 children: [
-                  // Profile Header Section
                   Container(
                     color: Colors.white,
                     child: Column(
                       children: [
-                        // Banner Image
                         Stack(
                           clipBehavior: Clip.none,
                           alignment: Alignment.bottomCenter,
                           children: [
-                            // Banner
                             Container(
                               height: 120,
                               width: double.infinity,
@@ -283,7 +274,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                                       ),
                               ),
                             ),
-                            // Avatar
                             Positioned(
                               bottom: -40,
                               child: Container(
@@ -325,7 +315,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 48),
-                        // Display Name
                         Text(
                           userProfile.displayName ?? userProfile.username,
                           style: const TextStyle(
@@ -335,7 +324,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        // Username
                         Text(
                           '@${userProfile.username}',
                           style: TextStyle(
@@ -344,7 +332,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        // Followers & Following with Follow State
                         Consumer(
                           builder: (context, ref, child) {
                             final followState = ref.watch(
@@ -352,7 +339,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                             );
                             return Column(
                               children: [
-                                // Followers & Following Stats
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -375,7 +361,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                // Follow/Unfollow Button
                                 Material(
                                   color: followState.isFollowing
                                       ? Colors.grey[200]
@@ -442,7 +427,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                           },
                         ),
                         const SizedBox(height: 12),
-                        // Bio
                         if (userProfile.bio != null &&
                             userProfile.bio!.isNotEmpty)
                           Padding(
@@ -461,7 +445,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                     ),
                   ),
 
-                  // Postingan Section
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -479,7 +462,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                     ),
                   ),
 
-                  // User Posts (filtered - exclude anonymous posts)
                   userPostsAsync.when(
                     loading: () => const Padding(
                       padding: EdgeInsets.all(32),
@@ -560,9 +542,6 @@ class _OtherProfileScreenState extends ConsumerState<OtherProfileScreen> {
                                       PostDetailScreen(post: post),
                                 ),
                               );
-                              // Handle navigation back with profile request
-                              // OtherProfileScreen doesn't need to handle own profile navigation
-                              // since clicking on posts in this screen are already this user's posts
                               if (result == 'go_to_profile' &&
                                   widget.onBack != null) {
                                 widget.onBack!();

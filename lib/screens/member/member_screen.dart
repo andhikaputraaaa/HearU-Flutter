@@ -9,7 +9,6 @@ class MemberScreen extends StatelessWidget {
       color: Colors.grey[100],
       child: Column(
         children: [
-          // Custom header matching other screens
           Container(
             color: Colors.white,
             child: SafeArea(
@@ -32,7 +31,6 @@ class MemberScreen extends StatelessWidget {
               ),
             ),
           ),
-          // Coming soon content
           Expanded(
             child: Center(
               child: Column(

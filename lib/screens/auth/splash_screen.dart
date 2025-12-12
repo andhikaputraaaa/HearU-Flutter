@@ -24,15 +24,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _checkAuthState() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    
+
     final user = supabase.auth.currentUser;
-    
+
     if (mounted) {
       setState(() {
         _isChecking = false;
       });
 
-      // If user is already logged in, navigate to MainScreen
       if (user != null) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainScreen()),
@@ -58,7 +57,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          // Top Section - White Background with Logo
           Expanded(
             flex: 3,
             child: Container(
@@ -67,13 +65,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Logo Image
                     Image.asset(
                       'assets/images/logo.png',
                       width: 360,
                       height: 360,
                       errorBuilder: (context, error, stackTrace) {
-                        // Fallback jika gambar tidak ditemukan
                         return Container(
                           width: 120,
                           height: 120,
@@ -96,7 +92,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
           ),
 
-          // Bottom Section - Primary Color Background
           Expanded(
             flex: 2,
             child: Container(
@@ -111,11 +106,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, // Tambahkan ini
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 16),
 
-                    // Welcome Text
                     const Text(
                       'Selamat Datang',
                       style: TextStyle(
@@ -127,9 +121,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
                     const SizedBox(height: 12),
 
-                    // Description
                     Text(
-                      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer feugiat vitae sem eget mollis. Suspendisse pellentesque, leo ut viverra tempus.',
+                      'Ruang aman untuk berbagi cerita dan mendengarkan sesama. Mari saling mendukung dalam perjalanan hidup kita.',
                       textAlign: TextAlign.start,
                       style: TextStyle(
                         fontSize: 14,
@@ -140,10 +133,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
                     const Spacer(),
 
-                    // Buttons Row
                     Row(
                       children: [
-                        // Masuk Button
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
@@ -174,7 +165,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
                         const SizedBox(width: 16),
 
-                        // Daftar Button
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {

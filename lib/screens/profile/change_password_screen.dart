@@ -38,13 +38,11 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
     });
 
     try {
-      // First, verify current password by trying to sign in
       final email = supabase.auth.currentUser?.email;
       if (email == null) {
         throw Exception('Email tidak ditemukan');
       }
 
-      // Try to sign in with current password to verify
       try {
         await supabase.auth.signInWithPassword(
           email: email,
@@ -54,7 +52,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         throw Exception('Password lama salah');
       }
 
-      // Update password
       await supabase.auth.updateUser(
         UserAttributes(password: _newPasswordController.text),
       );
@@ -120,7 +117,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
             children: [
               const SizedBox(height: 16),
 
-              // Info text
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -146,7 +142,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
               const SizedBox(height: 24),
 
-              // Current Password
               _buildPasswordField(
                 controller: _currentPasswordController,
                 label: 'Password Lama',
@@ -167,7 +162,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
               const SizedBox(height: 16),
 
-              // New Password
               _buildPasswordField(
                 controller: _newPasswordController,
                 label: 'Password Baru',
@@ -194,7 +188,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
               const SizedBox(height: 16),
 
-              // Confirm New Password
               _buildPasswordField(
                 controller: _confirmPasswordController,
                 label: 'Konfirmasi Password Baru',
@@ -218,7 +211,6 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
 
               const SizedBox(height: 32),
 
-              // Submit Button
               ElevatedButton(
                 onPressed: _isLoading ? null : _changePassword,
                 style: ElevatedButton.styleFrom(

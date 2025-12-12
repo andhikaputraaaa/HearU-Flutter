@@ -60,7 +60,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
     });
 
     try {
-      // Search users and posts in parallel
       final results = await Future.wait([
         _userService.searchUsers(query),
         _postService.searchPosts(query),
@@ -114,12 +113,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   void _navigateToProfile(String userId) {
     final currentUserId = _userService.getCurrentUserId();
     if (userId == currentUserId) {
-      // Go to own profile
       if (widget.onGoToProfile != null) {
         widget.onGoToProfile!();
       }
     } else {
-      // Navigate to other user's profile
       if (widget.onViewOtherProfile != null) {
         widget.onViewOtherProfile!(userId);
       } else {
@@ -139,7 +136,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
       color: Colors.grey[100],
       child: Column(
         children: [
-          // Custom header
           Container(
             color: Colors.white,
             child: SafeArea(
@@ -162,7 +158,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               ),
             ),
           ),
-          // Search bar
           Container(
             color: Colors.white,
             padding: const EdgeInsets.all(16),
@@ -197,7 +192,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               onSubmitted: _performSearch,
             ),
           ),
-          // Tabs
           Container(
             color: Colors.white,
             child: TabBar(
@@ -211,7 +205,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               ],
             ),
           ),
-          // Results
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -399,7 +392,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
               );
             },
             onLikeTap: () async {
-              // Refresh search results after like/unlike
               await _performSearch(_searchController.text);
             },
             onAvatarTap: () {

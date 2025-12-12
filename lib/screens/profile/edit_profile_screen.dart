@@ -107,7 +107,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _saveProfile() async {
-    // Validate username
     await _validateUsername(_usernameController.text.trim());
     if (_usernameError != null) return;
 
@@ -120,7 +119,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       String? avatarUrl;
       String? bannerUrl;
 
-      // Upload avatar if changed
       if (_avatarFile != null) {
         avatarUrl = await userService.uploadImage(
           _avatarFile!,
@@ -129,7 +127,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         );
       }
 
-      // Upload banner if changed
       if (_bannerFile != null) {
         bannerUrl = await userService.uploadImage(
           _bannerFile!,
@@ -138,7 +135,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         );
       }
 
-      // Update profile
       await userService.updateProfile(
         username: _usernameController.text.trim(),
         displayName: _displayNameController.text.trim().isEmpty
@@ -151,7 +147,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         bannerUrl: bannerUrl,
       );
 
-      // Refresh user profile
       ref.invalidate(currentUserProfileProvider);
 
       if (mounted) {
@@ -240,12 +235,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Banner and Avatar Section
             Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.bottomCenter,
               children: [
-                // Banner
                 GestureDetector(
                   onTap: () => _pickImage(false),
                   child: Container(
@@ -285,7 +278,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     ),
                   ),
                 ),
-                // Avatar
                 Positioned(
                   bottom: -50,
                   child: GestureDetector(
@@ -348,14 +340,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
             const SizedBox(height: 70),
 
-            // Form Fields
             Container(
               color: Colors.white,
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Display Name
                   _buildTextField(
                     label: 'Nama Tampilan',
                     controller: _displayNameController,
@@ -363,7 +353,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Username
                   _buildTextField(
                     label: 'Username',
                     controller: _usernameController,
@@ -374,7 +363,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Bio
                   _buildTextField(
                     label: 'Bio',
                     controller: _bioController,

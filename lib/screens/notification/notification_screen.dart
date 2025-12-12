@@ -27,7 +27,6 @@ class NotificationScreenState extends ConsumerState<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    // Load notifications when screen opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationProvider.notifier).loadNotifications();
     });
@@ -103,23 +102,19 @@ class NotificationScreenState extends ConsumerState<NotificationScreen> {
   void _handleNotificationTap(NotificationModel notification) async {
     switch (notification.type) {
       case 'follow':
-        // Navigate to follower's profile
         _navigateToProfile(notification.actorId);
         break;
       case 'like':
-        // Navigate to post detail (the liked post)
         if (notification.postId != null) {
           await _navigateToPostDetail(notification.postId!);
         }
         break;
       case 'comment':
-        // Navigate to post detail
         if (notification.postId != null) {
           await _navigateToPostDetail(notification.postId!);
         }
         break;
       case 'comment_like':
-        // Navigate to post detail where the comment is
         if (notification.postId != null) {
           await _navigateToPostDetail(notification.postId!);
         }
@@ -130,12 +125,10 @@ class NotificationScreenState extends ConsumerState<NotificationScreen> {
   void _navigateToProfile(String userId) {
     final currentUserId = supabase.auth.currentUser?.id;
     if (userId == currentUserId) {
-      // Go to own profile
       if (widget.onGoToProfile != null) {
         widget.onGoToProfile!();
       }
     } else {
-      // Navigate to other user's profile
       if (widget.onViewOtherProfile != null) {
         widget.onViewOtherProfile!(userId);
       } else {
@@ -150,7 +143,6 @@ class NotificationScreenState extends ConsumerState<NotificationScreen> {
   }
 
   Future<void> _navigateToPostDetail(String postId) async {
-    // Get post from provider
     final postsState = ref.read(postsProvider);
 
     postsState.when(
@@ -205,12 +197,10 @@ class NotificationScreenState extends ConsumerState<NotificationScreen> {
           );
 
     if (!widget.showAppBar) {
-      // Embedded mode - no scaffold, just content with header
       return Container(
         color: Colors.grey[100],
         child: Column(
           children: [
-            // Custom header - matching other screens' AppBar style
             Container(
               color: Colors.white,
               child: SafeArea(
@@ -317,7 +307,6 @@ class NotificationScreenState extends ConsumerState<NotificationScreen> {
         leading: Stack(
           clipBehavior: Clip.none,
           children: [
-            // Avatar
             notification.actorAvatarUrl != null
                 ? CircleAvatar(
                     radius: 24,
@@ -335,7 +324,6 @@ class NotificationScreenState extends ConsumerState<NotificationScreen> {
                       ),
                     ),
                   ),
-            // Notification type icon
             Positioned(
               bottom: -4,
               right: -4,

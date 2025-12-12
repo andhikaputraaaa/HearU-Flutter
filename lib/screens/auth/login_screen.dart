@@ -90,7 +90,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _forgotPassword() {
-    // TODO: Implement forgot password functionality
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Fitur lupa password akan segera hadir'),
@@ -107,7 +106,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         bottom: false,
         child: Column(
           children: [
-            // Header Section - Gunakan height tetap, bukan flex
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(8, 8, 24, 24),
@@ -115,7 +113,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Back Button
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.white),
                     onPressed: () => Navigator.pop(context),
@@ -123,7 +120,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(height: 16),
-                  // Title
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -139,7 +135,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer feugiat vitae sem eget mollis.',
+                          'Selamat datang kembali! Masuk untuk melanjutkan berbagi cerita dan mendengarkan pengalaman orang lain.',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.white,
@@ -155,7 +151,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
 
-            // Form Container - Ambil sisa ruang
             Expanded(
               child: Container(
                 width: double.infinity,
@@ -175,7 +170,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         const SizedBox(height: 16),
 
-                        // Username Field
                         CustomTextField(
                           hint: 'Email',
                           controller: _usernameController,
@@ -185,7 +179,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         const SizedBox(height: 16),
 
-                        // Password Field
                         CustomTextField(
                           hint: 'Password',
                           controller: _passwordController,
@@ -195,7 +188,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         const SizedBox(height: 8),
 
-                        // Forgot Password Link
                         Align(
                           alignment: Alignment.centerRight,
                           child: GestureDetector(
@@ -212,7 +204,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Login Button
                         CustomButton(
                           text: 'Masuk',
                           onPressed: _signIn,
@@ -222,12 +213,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Google Sign In Button
                         _buildGoogleButton(),
 
                         const SizedBox(height: 32),
 
-                        // Sign Up Link
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -298,7 +287,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                // Google Icon
                 Image.asset(
                   'assets/images/google_logo.png',
                   width: 20,

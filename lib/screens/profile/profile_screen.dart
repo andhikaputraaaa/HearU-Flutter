@@ -10,7 +10,6 @@ import '../../widgets/common/post_card.dart';
 import '../post/post_detail_screen.dart';
 import 'settings_screen.dart';
 
-// User posts state notifier
 class UserPostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   final PostService _postService;
   final String? _userId;
@@ -36,7 +35,6 @@ class UserPostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   }
 
   Future<void> toggleLike(String postId, bool isCurrentlyLiked) async {
-    // Optimistic update - update state immediately
     state.whenData((posts) {
       final updatedPosts = posts.map((post) {
         if (post.id == postId) {
@@ -59,7 +57,6 @@ class UserPostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
         await _postService.likePost(postId);
       }
     } catch (e) {
-      // Revert on error
       state.whenData((posts) {
         final revertedPosts = posts.map((post) {
           if (post.id == postId) {
@@ -88,7 +85,6 @@ class UserPostsNotifier extends StateNotifier<AsyncValue<List<PostModel>>> {
   }
 }
 
-// Provider untuk mendapatkan postingan user saat ini
 final userPostsProvider =
     StateNotifierProvider<UserPostsNotifier, AsyncValue<List<PostModel>>>((
       ref,
@@ -110,7 +106,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class ProfileScreenState extends ConsumerState<ProfileScreen> {
   final ScrollController _scrollController = ScrollController();
 
-  // Method untuk refresh data dari luar (parent widget)
   Future<void> refreshData() async {
     ref.invalidate(currentUserProfileProvider);
     await ref.read(userPostsProvider.notifier).loadPosts();
@@ -120,7 +115,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Register callback untuk refresh dari parent
     widget.onRefreshRequested?.call(refreshData);
   }
 
@@ -344,17 +338,14 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 children: [
-                  // Profile Header Section
                   Container(
                     color: Colors.white,
                     child: Column(
                       children: [
-                        // Banner Image
                         Stack(
                           clipBehavior: Clip.none,
                           alignment: Alignment.bottomCenter,
                           children: [
-                            // Banner
                             Container(
                               height: 120,
                               width: double.infinity,
@@ -377,7 +368,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       ),
                               ),
                             ),
-                            // Avatar
                             Positioned(
                               bottom: -40,
                               child: Container(
@@ -419,7 +409,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 48),
-                        // Display Name
                         Text(
                           userProfile.displayName ?? userProfile.username,
                           style: const TextStyle(
@@ -429,7 +418,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        // Username
                         Text(
                           '@${userProfile.username}',
                           style: TextStyle(
@@ -438,7 +426,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        // Followers & Following
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -461,7 +448,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        // Bio
                         if (userProfile.bio != null &&
                             userProfile.bio!.isNotEmpty)
                           Padding(
@@ -480,7 +466,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
 
-                  // Postingan Section
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -498,7 +483,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
 
-                  // User Posts (filtered from all posts)
                   userPostsAsync.when(
                     loading: () => const Padding(
                       padding: EdgeInsets.all(32),
@@ -584,7 +568,6 @@ class ProfileScreenState extends ConsumerState<ProfileScreen> {
                             onDeleteTap: () =>
                                 _showDeleteDialog(context, post.id),
                             onTap: () async {
-                              // No action needed for 'go_to_profile' since we're already on profile
                               await Navigator.push<String>(
                                 context,
                                 MaterialPageRoute(

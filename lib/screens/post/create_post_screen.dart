@@ -39,7 +39,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
     });
 
     try {
-      // Debug: Check current user
       final currentUser = supabase.auth.currentUser;
       print('Current User: ${currentUser?.id}');
       print('Current User Email: ${currentUser?.email}');
@@ -48,7 +47,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         throw Exception('User not authenticated. Please login again.');
       }
 
-      // Create post using provider
       await ref
           .read(postsProvider.notifier)
           .createPost(
@@ -64,13 +62,11 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
           ),
         );
 
-        // Clear the text field
         _contentController.clear();
         setState(() {
           _isAnonymous = false;
         });
 
-        // Call callback to navigate back to home
         widget.onPostSuccess?.call();
       }
     } catch (e) {
@@ -120,7 +116,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Text input area
             Container(
               height: 200,
               padding: const EdgeInsets.all(16),
@@ -142,7 +137,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Anonymous toggle
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -169,7 +163,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            // Post button
             ElevatedButton(
               onPressed: _isLoading ? null : _handlePost,
               style: ElevatedButton.styleFrom(
@@ -198,7 +191,6 @@ class _CreatePostScreenState extends ConsumerState<CreatePostScreen> {
                       ),
                     ),
             ),
-            // Extra space for navbar
             const SizedBox(height: 80),
           ],
         ),

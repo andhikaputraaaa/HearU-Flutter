@@ -23,14 +23,13 @@ class _MainScreenState extends ConsumerState<MainScreen>
   int _currentIndex = 0;
   final GlobalKey<ProfileScreenState> _profileKey = GlobalKey();
   final GlobalKey<NotificationScreenState> _notificationKey = GlobalKey();
-  String? _viewingOtherUserId; // Track if viewing another user's profile
-  DateTime? _lastBackPressed; // For double-tap to exit
+  String? _viewingOtherUserId;
+  DateTime? _lastBackPressed;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Load notification count when MainScreen is initialized (after login)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(notificationProvider.notifier).loadUnreadCount();
     });
@@ -44,36 +43,29 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Reset last back pressed when app comes to foreground
     if (state == AppLifecycleState.resumed) {
       _lastBackPressed = null;
     }
   }
 
   void _handleNavigation(int index) {
-    // Jika tap di navbar yang sama, refresh data
     if (index == _currentIndex && _viewingOtherUserId == null) {
       if (index == 0) {
-        // Refresh home
         ref.read(postsProvider.notifier).loadPosts();
       } else if (index == 3) {
-        // Refresh notifications
         _notificationKey.currentState?.refreshData();
       } else if (index == 4) {
-        // Refresh member (no action needed yet)
       } else if (index == 5) {
-        // Refresh profile
         _profileKey.currentState?.refreshData();
       }
     } else {
-      // When switching to notification tab, mark as read
       if (index == 3) {
         ref.read(notificationProvider.notifier).markAllAsRead();
       }
 
       setState(() {
         _currentIndex = index;
-        _viewingOtherUserId = null; // Clear other user view when switching tabs
+        _viewingOtherUserId = null;
       });
     }
   }
@@ -92,7 +84,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
   void _goToOwnProfile() {
     setState(() {
-      _currentIndex = 5; // Profile is now at index 5
+      _currentIndex = 5;
       _viewingOtherUserId = null;
     });
   }
@@ -107,7 +99,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
   Widget build(BuildContext context) {
     final notificationState = ref.watch(notificationProvider);
 
-    // List of screens for navigation (now includes search)
     final List<Widget> screens = [
       HomeScreenContent(
         onViewOtherProfile: _viewOtherProfile,
@@ -122,7 +113,7 @@ class _MainScreenState extends ConsumerState<MainScreen>
         key: _notificationKey,
         onViewOtherProfile: _viewOtherProfile,
         onGoToProfile: _goToOwnProfile,
-        showAppBar: false, // No app bar since it's embedded
+        showAppBar: false,
       ),
       const MemberScreen(),
       ProfileScreen(key: _profileKey),
@@ -130,27 +121,21 @@ class _MainScreenState extends ConsumerState<MainScreen>
 
     return WillPopScope(
       onWillPop: () async {
-        // If viewing other profile, go back to previous screen (single back)
         if (_viewingOtherUserId != null) {
           _closeOtherProfile();
           return false;
         }
-
-        // If we're in navbar screens (any tab), require double-tap to exit
-        // Reset timer when switching tabs
         if (_currentIndex != 0) {
           setState(() {
             _currentIndex = 0;
-            _lastBackPressed = null; // Reset timer when going to home
+            _lastBackPressed = null;
           });
           return false;
         }
 
-        // We're on home screen (index 0) - require double-tap to exit app
         final now = DateTime.now();
         if (_lastBackPressed == null ||
             now.difference(_lastBackPressed!) > const Duration(seconds: 2)) {
-          // First press or expired - show confirmation
           _lastBackPressed = now;
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -161,7 +146,6 @@ class _MainScreenState extends ConsumerState<MainScreen>
           );
           return false;
         }
-        // Second press within 2 seconds - allow exit
         return true;
       },
       child: Scaffold(
